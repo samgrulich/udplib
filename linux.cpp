@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+
+#define LINUX // comment out for windows functionality
+#include "universal.h"
 
 #define TARGET_IP   "147.32.217.21"
 
@@ -22,14 +21,12 @@
 #define LOCAL_PORT 5001 
 #endif // RECEIVER
 
-void InitWinsock() {
-    // No need for this function on Linux
-}
-
 int main() {
     int socketS;
-
-    //InitWinsock(); // Not needed on Linux
+    
+#ifndef LINUX 
+    InitWinsock();
+#endif
 
     struct sockaddr_in local;
     struct sockaddr_in from;

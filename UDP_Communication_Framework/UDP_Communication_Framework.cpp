@@ -1,10 +1,13 @@
 // UDP_Communication_Framework.cpp : Defines the entry point for the console application.
 //
 
-#pragma comment(lib, "ws2_32.lib")
-#include "stdafx.h"
-#include <winsock2.h>
-#include "ws2tcpip.h"
+// #pragma comment(lib, "ws2_32.lib")
+// #include "stdafx.h"
+// #include <winsock2.h>
+// #include "ws2tcpip.h"
+#include "universal.h"
+#include <stdio.h>
+#include <tchar.h>
 
 #define TARGET_IP	"127.0.0.1"
 
@@ -14,28 +17,22 @@
 //#define RECEIVER
 
 #ifdef SENDER
-#define TARGET_PORT 5555
-#define LOCAL_PORT 8888
+#define TARGET_PORT 5001
+#define LOCAL_PORT 5002 
 #endif // SENDER
 
 #ifdef RECEIVER
-#define TARGET_PORT 8888
-#define LOCAL_PORT 5555
+#define TARGET_PORT 5002
+#define LOCAL_PORT 5001
 #endif // RECEIVER
 
-
-void InitWinsock()
-{
-	WSADATA wsaData;
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
-}
 
 //**********************************************************************
 int main()
 {
 	SOCKET socketS;
-	
-	InitWinsock();
+
+    INIT_UNIVERSAL
 
 	struct sockaddr_in local;
 	struct sockaddr_in from;
