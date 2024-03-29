@@ -3,3 +3,5 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#define InetPton(x, y, z) inet_pton(x, y, z)

@@ -1,3 +1,7 @@
+# Linux builds
+build
+
+# Visual studio files
 x64
 */x64
 *.user
