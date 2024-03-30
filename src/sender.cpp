@@ -36,12 +36,13 @@ void Sender::send(HeaderType type, std::string value) {
 void Sender::sendChunk() {
     char buff[BUFFERS_LEN];
 
+    int offset = 4+4+1;
     // read file
-    fstream_.read(buff, BUFFERS_LEN-1);
+    fstream_.read(buff, BUFFERS_LEN-offset);
     
     // create message bytes to send
     const int len = strlen(buff);
-    const int bytesLen = 4+4+len+1;
+    const int bytesLen = len+offset;
     char *bytes = new char[bytesLen];
     uint32_t pos = htons(position_);
     const char* label = getLabel(HeaderType::Data);
