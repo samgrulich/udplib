@@ -1,8 +1,10 @@
 #include "sender.h"
 #include "message.h"
 #include "pipe.h"
+#include <cstring>
 #include <filesystem>
 #include <sstream>
+#include <iostream>
 
 Sender::Sender(const char* const name) 
     :name_(name), position_(0)
@@ -12,7 +14,7 @@ Sender::Sender(const char* const name)
 }
 
 void Sender::send(HeaderType type) {
-    if (type != HeaderType::Start || type != HeaderType::Stop)
+    if (type != HeaderType::Start && type != HeaderType::Stop)
         return;
     pipe_.send(getLabel(type));
 }
@@ -36,15 +38,23 @@ void Sender::send(HeaderType type, std::string value) {
 
 void Sender::sendChunk() {
     char buff[BUFFERS_LEN];
-    std::stringstream msg;
 
+    // read file
     fstream_.read(buff, BUFFERS_LEN-1);
+    
+    // create message bytes to send
+    const int len = strlen(buff);
+    const int bytesLen = 4+4+len+1;
+    char bytes[bytesLen];
     uint32_t pos = htons(position_);
-    char* position = (char*)&pos;
+    const char* label = getLabel(HeaderType::Data);
 
-    msg << getLabel(HeaderType::Data) << position[0] << position[1] << position[2] << position[3];
-    msg << buff;
-    pipe_.send(msg.str());
+    memcpy(bytes, label, 4);
+    memcpy(bytes+4, &pos, 4);
+    memcpy(bytes+8, buff, len);
+
+    pipe_.sendBytes(bytes, bytesLen);
+    position_ = len;
 }
 
 size_t Sender::size() {

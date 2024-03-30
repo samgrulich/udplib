@@ -9,5 +9,5 @@ enum HeaderType {
     Data,
 };
 
-std::string getLabel(HeaderType type);
+const char* getLabel(HeaderType type);
 size_t getSplitPos(HeaderType type);

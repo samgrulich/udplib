@@ -1,6 +1,6 @@
 #include "message.h"
 
-std::string getLabel(HeaderType type) {
+const char* getLabel(HeaderType type) {
     switch (type) {
         case Start:
             return "START";
@@ -19,9 +19,9 @@ std::string getLabel(HeaderType type) {
 size_t getSplitPos(HeaderType type) {
     switch(type) {
         case Name: 
-            return 4;
+            return 5;
         case Size:
-            return 4;
+            return 5;
         default:
             return 0;
     }

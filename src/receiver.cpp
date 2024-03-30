@@ -1,5 +1,7 @@
 #include "receiver.h"
 #include "message.h"
+#include "pipe.h"
+#include <cstring>
 #include <fstream>
 
 Receiver::Receiver(const char* const name) 
@@ -9,17 +11,22 @@ Receiver::Receiver(const char* const name)
 }
 
 // local funciton
-bool isHeaderType(HeaderType type, std::string& msg) {
-    return msg.rfind(getLabel(type), 0) == 0;
+bool isHeaderType(HeaderType type, char* msg) {
+    return memcmp(msg, getLabel(type), 4) == 0;
+}
+
+void stripDataHeader(char* msg) {
+    memcpy(msg, msg+4+4, BUFFERS_LEN-4-4);
 }
 
 void Receiver::recvFile() {
     bool isOpen = true;
     do { 
-        std::string buffer;
-        if (pipe_.recv(&buffer) <= 0)
+        char buffer[BUFFERS_LEN];
+        if (pipe_.recv(buffer) == -1)
             continue;
         if (isHeaderType(HeaderType::Data, buffer)) {
+            stripDataHeader(buffer);
             fstream_ << buffer;
         } else if (isHeaderType(HeaderType::Stop, buffer)) {
             isOpen = false;
@@ -31,25 +38,22 @@ void Receiver::recvFile() {
 
 void Receiver::listen() {
     size_t size = 0;
-    std::string name;
+    char name[BUFFERS_LEN];
 
     // load name an size
-    do {
-        std::string buffer;
-        if (pipe_.recv(&buffer) <= 0)
-            continue;
-
-        printf("Something's here\n");
-        if (isHeaderType(HeaderType::Name, buffer)) {
-            int start = getSplitPos(HeaderType::Name);
-            name = buffer.substr(start);
-            printf("Name, %s\n", name.c_str());
-        } else if (isHeaderType(HeaderType::Size, buffer)) {
-            int start = getSplitPos(HeaderType::Size);
-            size = atoi(buffer.substr(start).c_str());
-            printf("Size, %ld\n", size);
-        }
-    } while (size == 0 && name.empty());
+    char buffer[BUFFERS_LEN];
+    pipe_.recv(buffer);
+    if (isHeaderType(HeaderType::Name, buffer)) {
+        int start = getSplitPos(HeaderType::Name);
+        memcpy(name, buffer+start, BUFFERS_LEN-start);
+    } 
+    pipe_.recv(buffer);
+    if (isHeaderType(HeaderType::Size, buffer)) {
+        int start = getSplitPos(HeaderType::Size);
+        char sizeBytes[BUFFERS_LEN];
+        memcpy(sizeBytes, buffer+start, BUFFERS_LEN-start);
+        size = atoi(sizeBytes);
+    }
 
     fstream_ = std::ofstream(name, std::ios::binary);
     size_ = size;
