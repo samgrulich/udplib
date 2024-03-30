@@ -1,13 +1,10 @@
 #include "sender.h"
-#include "message.h"
-#include "pipe.h"
+#include "common.h"
 #include <cstring>
 #include <filesystem>
-#include <sstream>
-#include <iostream>
 
-Sender::Sender(const char* const name) 
-    :name_(name), position_(0)
+Sender::Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port) 
+    :name_(name), position_(0), pipe_(remote_address, local_port, remote_port)
 {
     fstream_ = std::ifstream(name, std::ios::binary);
     size_ = std::filesystem::file_size({name});

@@ -1,30 +1,38 @@
 #include <stdio.h>
-#include <string.h>
 #include <thread>
 
 #include "message.h"
 #include "receiver.h"
 #include "sender.h"
-#include "socket.h"
 
 // #define SENDER
 // #define RECEIVER
+
+#define TARGET_IP   "10.0.0.11"
+
+#ifdef SENDER
+#define TARGET_PORT 5001
+#define LOCAL_PORT 5002
+#endif // SENDER
+
+#ifdef RECEIVER
+#define TARGET_PORT 5002 
+#define LOCAL_PORT 5001 
+#endif // RECEIVER
 
 using namespace std::chrono_literals;
 #define DELAY 100ms
 
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
 #ifdef SENDER
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
-#else 
-        fprintf(stderr, "Usage: %s <output_file>\n", argv[0]);
-#endif
         return 1;
     }
 
     const char* filePath = argv[1];
+#endif
     int socketS;
 
 #ifndef LINUX 
@@ -32,8 +40,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef SENDER
-    printf("Qe passo1\n");
-    Sender sender(filePath);
+    Sender sender(filePath, TARGET_IP, LOCAL_PORT, TARGET_PORT);
     sender.send(HeaderType::Name, filePath);
     std::this_thread::sleep_for(DELAY);
     sender.send(HeaderType::Size, sender.size());
@@ -47,8 +54,7 @@ int main(int argc, char* argv[]) {
 #endif // SENDER
 
 #ifdef RECEIVER
-    printf("Qe passo2\n");
-    Receiver receiver(filePath);
+    Receiver receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
     receiver.listen();
 #endif // RECEIVER
 

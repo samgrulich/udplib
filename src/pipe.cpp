@@ -1,11 +1,12 @@
 #include "pipe.h"
+#include "common.h"
 #include <cstring>
 
 
-Pipe::Pipe() {
+Pipe::Pipe(const char* remote_address, const int local_port, const int remote_port) {
     fromlen_ = sizeof(from_);
     local_.sin_family = AF_INET;
-    local_.sin_port = htons(LOCAL_PORT);
+    local_.sin_port = htons(local_port);
     local_.sin_addr.s_addr = INADDR_ANY;
 
     socket_ = socket(AF_INET, SOCK_DGRAM, 0);
@@ -16,8 +17,8 @@ Pipe::Pipe() {
     }
 
     dest_.sin_family = AF_INET;
-    dest_.sin_port = htons(TARGET_PORT);
-    inet_pton(AF_INET, TARGET_IP, &dest_.sin_addr);
+    dest_.sin_port = htons(remote_port);
+    inet_pton(AF_INET, remote_address, &dest_.sin_addr);
 }
 
 size_t Pipe::send(const std::string& message) {

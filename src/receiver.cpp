@@ -1,11 +1,10 @@
 #include "receiver.h"
 #include "message.h"
-#include "pipe.h"
 #include <cstring>
-#include <fstream>
+#include "common.h"
 
-Receiver::Receiver(const char* const name) 
-    : size_(0)
+Receiver::Receiver(const char* remote_address, const int local_port, const int remote_port) 
+    : size_(0), pipe_(remote_address, local_port, remote_port)
 {
     fstream_ = std::ofstream();
 }

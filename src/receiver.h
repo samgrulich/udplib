@@ -8,8 +8,11 @@ private:
     size_t size_;
     Pipe pipe_;
 private:
+    // receive file
     void recvFile();
 public: 
-    Receiver(const char* const name);
+    // create new receiver
+    Receiver(const char* remote_address, const int local_port, const int remote_port);
+    // listen for incoming packets
     void listen();
 };
