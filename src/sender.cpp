@@ -35,6 +35,7 @@ void Sender::send(HeaderType type, std::string value) {
 
 void Sender::sendChunk() {
     char buff[BUFFERS_LEN];
+    memset(buff, 0, BUFFERS_LEN);
 
     int offset = 4+4+1;
     // read file
