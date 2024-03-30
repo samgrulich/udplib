@@ -3,6 +3,8 @@
 #include <cstring>
 #include "common.h"
 
+#include <iostream>
+
 Receiver::Receiver(const char* remote_address, const int local_port, const int remote_port) 
     : size_(0), pipe_(remote_address, local_port, remote_port)
 {
@@ -54,6 +56,7 @@ void Receiver::listen() {
         size = atoi(sizeBytes);
     }
 
+    std::cout << "Filename: " << name << std::endl;
     fstream_ = std::ofstream(name, std::ios::binary);
     size_ = size;
     recvFile();

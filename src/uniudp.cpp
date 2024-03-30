@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <thread>
+#include <iostream>
 
 #include "message.h"
 #include "receiver.h"
@@ -39,6 +40,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef SENDER
+    std::cout << "Sending file: " << filePath << std::endl;
     Sender sender(filePath, TARGET_IP, LOCAL_PORT, TARGET_PORT);
     sender.send(HeaderType::Name, filePath);
     std::this_thread::sleep_for(DELAY);
@@ -50,11 +52,14 @@ int main(int argc, char* argv[]) {
         std::this_thread::sleep_for(DELAY);
     } while (!sender.eof());
     sender.send(HeaderType::Stop);
+    std::cout << "File sent!" << std::endl;
 #endif // SENDER
 
 #ifdef RECEIVER
+    std::cout << "Listening for incoming connection." << std::endl;
     Receiver receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
     receiver.listen();
+    std::cout << "File received!" << std::endl;
 #endif // RECEIVER
     return 0;
 }

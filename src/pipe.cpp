@@ -4,7 +4,8 @@
 
 
 Pipe::Pipe(const char* remote_address, const int local_port, const int remote_port) {
-    fromlen_ = sizeof(from_);
+    from_.sin_port = htons(remote_port);
+    fromlen_ = sizeof(struct sockaddr_in);
     local_.sin_family = AF_INET;
     local_.sin_port = htons(local_port);
     local_.sin_addr.s_addr = INADDR_ANY;
@@ -26,7 +27,7 @@ Pipe::~Pipe() {
 }
 
 size_t Pipe::send(const std::string& message) {
-    return sendto(socket_, message.c_str(), message.length(), 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
+    return sendto(socket_, message.c_str(), message.length()+1, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
 }
 
 size_t Pipe::sendBytes(const char *bytes, int len) {

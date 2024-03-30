@@ -52,7 +52,7 @@ void Sender::sendChunk() {
 
     pipe_.sendBytes(bytes, bytesLen);
     position_ = len;
-    free(bytes);
+    delete[] bytes;
 }
 
 size_t Sender::size() {
