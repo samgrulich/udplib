@@ -6,7 +6,7 @@
 #include "sender.h"
 
 // #define SENDER
-// #define RECEIVER
+#define RECEIVER
 
 #define TARGET_IP   "10.0.0.11"
 
@@ -33,7 +33,6 @@ int main(int argc, char* argv[]) {
 
     const char* filePath = argv[1];
 #endif
-    int socketS;
 
 #ifndef LINUX 
     InitWinsock();
@@ -57,7 +56,5 @@ int main(int argc, char* argv[]) {
     Receiver receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
     receiver.listen();
 #endif // RECEIVER
-
-    close(socketS);
     return 0;
 }

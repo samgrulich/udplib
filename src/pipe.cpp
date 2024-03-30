@@ -21,6 +21,10 @@ Pipe::Pipe(const char* remote_address, const int local_port, const int remote_po
     inet_pton(AF_INET, remote_address, &dest_.sin_addr);
 }
 
+Pipe::~Pipe() {
+    closesocket(socket_);
+}
+
 size_t Pipe::send(const std::string& message) {
     return sendto(socket_, message.c_str(), message.length(), 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
 }

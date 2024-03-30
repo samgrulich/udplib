@@ -5,3 +5,4 @@
 #include <arpa/inet.h>
 
 #define InetPton(x, y, z) inet_pton(x, y, z)
+#define closesocket(socket) close(socket)

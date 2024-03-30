@@ -42,7 +42,7 @@ void Sender::sendChunk() {
     // create message bytes to send
     const int len = strlen(buff);
     const int bytesLen = 4+4+len+1;
-    char bytes[bytesLen];
+    char *bytes = new char[bytesLen];
     uint32_t pos = htons(position_);
     const char* label = getLabel(HeaderType::Data);
 
@@ -52,6 +52,7 @@ void Sender::sendChunk() {
 
     pipe_.sendBytes(bytes, bytesLen);
     position_ = len;
+    free(bytes);
 }
 
 size_t Sender::size() {

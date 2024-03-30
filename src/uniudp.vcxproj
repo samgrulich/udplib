@@ -104,6 +104,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -127,10 +128,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="message.cpp" />
+    <ClCompile Include="pipe.cpp" />
+    <ClCompile Include="receiver.cpp" />
+    <ClCompile Include="sender.cpp" />
     <ClCompile Include="uniudp.cpp" />
+    <ClCompile Include="windowsSockets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="common.h" />
     <ClInclude Include="linuxSockets.h" />
+    <ClInclude Include="message.h" />
+    <ClInclude Include="pipe.h" />
+    <ClInclude Include="receiver.h" />
+    <ClInclude Include="sender.h" />
+    <ClInclude Include="socket.h" />
     <ClInclude Include="windowsSockets.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

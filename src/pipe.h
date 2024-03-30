@@ -18,6 +18,7 @@ public:
      *  @param remote_port the port at which the host listens
      */ 
     Pipe(const char* remote_address, const int local_port, const int remote_port);
+    ~Pipe();
     // sends string to the remote
     size_t send(const std::string& message);
     // sends bytes array to the remote
