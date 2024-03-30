@@ -6,7 +6,6 @@ Receiver::Receiver(const char* const name)
     : size_(0)
 {
     fstream_ = std::ofstream();
-    pipe_ = Pipe();
 }
 
 // local funciton
@@ -40,12 +39,15 @@ void Receiver::listen() {
         if (pipe_.recv(&buffer) <= 0)
             continue;
 
+        printf("Something's here\n");
         if (isHeaderType(HeaderType::Name, buffer)) {
             int start = getSplitPos(HeaderType::Name);
             name = buffer.substr(start);
+            printf("Name, %s\n", name.c_str());
         } else if (isHeaderType(HeaderType::Size, buffer)) {
             int start = getSplitPos(HeaderType::Size);
             size = atoi(buffer.substr(start).c_str());
+            printf("Size, %ld\n", size);
         }
     } while (size == 0 && name.empty());
 

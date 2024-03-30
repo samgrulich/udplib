@@ -19,4 +19,6 @@ public:
     void send(HeaderType type, int value);
     void send(HeaderType type, std::string value);
     void sendChunk();
+    size_t size();
+    bool eof();
 };

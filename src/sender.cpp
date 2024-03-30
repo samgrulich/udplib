@@ -9,7 +9,6 @@ Sender::Sender(const char* const name)
 {
     fstream_ = std::ifstream(name, std::ios::binary);
     size_ = std::filesystem::file_size({name});
-    pipe_ = Pipe();
 }
 
 void Sender::send(HeaderType type) {
@@ -46,4 +45,12 @@ void Sender::sendChunk() {
     msg << getLabel(HeaderType::Data) << position[0] << position[1] << position[2] << position[3];
     msg << buff;
     pipe_.send(msg.str());
+}
+
+size_t Sender::size() {
+    return size_;
+}
+
+bool Sender::eof() {
+    return fstream_.eof();
 }
