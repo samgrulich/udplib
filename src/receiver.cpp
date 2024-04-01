@@ -1,5 +1,6 @@
 #include "receiver.h"
 #include "message.h"
+#include <cstdio>
 #include <cstring>
 #include "common.h"
 
@@ -24,11 +25,13 @@ void Receiver::recvFile() {
     bool isOpen = true;
     do { 
         char buffer[BUFFERS_LEN];
-        if (pipe_.recv(buffer) == -1)
+        int len = 0;
+        if ((len = pipe_.recv(buffer)) < 0)
             continue;
         if (isHeaderType(HeaderType::Data, buffer)) {
             stripDataHeader(buffer);
-            fstream_ << buffer;
+            fstream_.write(buffer, len-4-4);
+            // fstream_ << buffer;
         } else if (isHeaderType(HeaderType::Stop, buffer)) {
             isOpen = false;
         } else if (isHeaderType(HeaderType::Start, buffer)) {

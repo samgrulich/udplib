@@ -1,6 +1,7 @@
 #include "pipe.h"
 #include "common.h"
 #include <cstring>
+#include <iostream>
 
 
 Pipe::Pipe(const char* remote_address, const int local_port, const int remote_port) {
@@ -31,7 +32,8 @@ size_t Pipe::send(const std::string& message) {
 }
 
 size_t Pipe::sendBytes(const char *bytes, int len) {
-    return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
+    std::cout << "bytes len: " << len << std::endl;
+    return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_))-1; 
 }
 
 size_t Pipe::recv(char* buffer) {
@@ -44,5 +46,5 @@ size_t Pipe::recv(char* buffer) {
     }
 
     memcpy(buffer, buff, size);
-    return size;
+    return size-1;
 }

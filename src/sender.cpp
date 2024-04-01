@@ -2,6 +2,7 @@
 #include "common.h"
 #include <cstring>
 #include <filesystem>
+#include <iostream>
 
 Sender::Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port) 
     :name_(name), position_(0), pipe_(remote_address, local_port, remote_port)
@@ -42,7 +43,7 @@ void Sender::sendChunk() {
     fstream_.read(buff, BUFFERS_LEN-offset);
     
     // create message bytes to send
-    const int len = strlen(buff);
+    const int len = fstream_.gcount();
     const int bytesLen = len+offset;
     char *bytes = new char[bytesLen];
     uint32_t pos = htons(position_);

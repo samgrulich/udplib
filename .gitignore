@@ -1,3 +1,8 @@
+# test files
+*.jpg
+*.txt
+*.png
+
 # Linux builds
 build
 
