@@ -28,7 +28,8 @@ Pipe::~Pipe() {
 }
 
 size_t Pipe::send(const std::string& message) {
-    return sendto(socket_, message.c_str(), message.length()+1, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
+    // return sendto(socket_, message.c_str(), message.length()+1, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
+    return sendBytes(message.c_str(), message.length()+1);
 }
 
 size_t Pipe::sendBytes(const char *bytes, int len) {
