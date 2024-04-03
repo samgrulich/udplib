@@ -12,6 +12,10 @@ const char* getLabel(HeaderType type) {
             return "SIZE";
         case Data:
             return "DATA";
+        case Ack:
+            return "ACK";
+        case Error:
+            return "ERROR";
     }
     return "";
 }
@@ -22,8 +26,10 @@ size_t getSplitPos(HeaderType type) {
             return 5;
         case Size:
             return 5;
+        case Ack:
+            return 3;
         default:
-            return 0;
+            return 5;
     }
     return 0;
 }

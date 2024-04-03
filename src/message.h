@@ -7,6 +7,8 @@ enum HeaderType {
     Name,
     Size,
     Data,
+    Ack,
+    Error,
 };
 
 // gets according label (c_str) for given Header (enum)

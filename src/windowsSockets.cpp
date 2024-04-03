@@ -1,3 +1,4 @@
+#ifndef LINUX
 #include "windowsSockets.h"
 
 void InitWinsock() {
@@ -6,3 +7,4 @@ void InitWinsock() {
 		perror("Socket errror");
 	}
 }
+#endif

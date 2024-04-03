@@ -53,7 +53,7 @@ void Sender::sendChunk() {
     memcpy(bytes+4, &pos, 4);
     memcpy(bytes+8, buff, len);
 
-    pipe_.sendBytes(bytes, bytesLen);
+    pipe_.send(bytes, bytesLen);
     position_ = len;
     delete[] bytes;
 }
