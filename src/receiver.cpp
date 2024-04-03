@@ -1,8 +1,6 @@
 #include "receiver.h"
 #include "message.h"
 #include <cstring>
-#include <ios>
-#include <iostream>
 #include <openssl/md5.h>
 
 Reciever::Reciever(const char* remote_address, const int local_port, const int remote_port) 
@@ -46,6 +44,7 @@ void Reciever::getPayloadString(std::string* out) {
     int start = msg.find_first_of("=");
     int outLen = msg.length()-start;
     memcpy(&msg[0], &msg[start+1], msg.length());
+    msg.resize(outLen);
     *out = msg;
     
     if (hasHeader(HeaderType::Name)) {
