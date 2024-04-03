@@ -1,10 +1,9 @@
 #include "receiver.h"
 #include "message.h"
-#include <cstdio>
 #include <cstring>
-#include "common.h"
-
+#include <ios>
 #include <iostream>
+#include <openssl/md5.h>
 
 Reciever::Reciever(const char* remote_address, const int local_port, const int remote_port) 
     : size_(0), pipe_(remote_address, local_port, remote_port), bufferLen_(0)
@@ -24,6 +23,13 @@ void stripDataHeader(char* msg) {
 int Reciever::recv() {
     bufferLen_ = pipe_.recv(buffer_);
     return bufferLen_;
+}
+
+bool Reciever::matchHashes() {
+    unsigned char* hash = getHash(); 
+    unsigned char incoming[MD5_DIGEST_LENGTH];
+    memcpy(incoming, buffer_, MD5_DIGEST_LENGTH);
+    return memcmp(incoming, hash, MD5_DIGEST_LENGTH) == 0;
 }
 
 bool Reciever::hasHeader(HeaderType type) {
@@ -65,54 +71,10 @@ int Reciever::saveDataPayload() {
     char buff[BUFFERS_LEN];
     int offset = 4+4; // to strip the header and position
     memcpy(buff, buffer_+offset, bufferLen_-offset);
+    updateHash(buff, bufferLen_-offset-1);
     fstream_.write(buff, bufferLen_-offset-1);
     return bufferLen_-offset;
 }
-
-// bool Reciever::recvFile() {
-//     bool isOpen = true;
-//     do { 
-//         char buffer[BUFFERS_LEN];
-//         int len = 0;
-//         if ((len = pipe_.recv(buffer)) < 0)
-//             continue;
-//         if (isHeaderType(HeaderType::Data, buffer)) {
-//             stripDataHeader(buffer);
-//             // update md5 context
-//             fstream_.write(buffer, len-4-4);
-//             // fstream_ << buffer;
-//         } else if (isHeaderType(HeaderType::Stop, buffer)) {
-//             isOpen = false;
-//         } else if (isHeaderType(HeaderType::Start, buffer)) {
-//             // pass
-//         }
-//     } while(isOpen);
-//     return true;
-// }
-//
-// void Reciever::listen() {
-//     size_t size = 0;
-//     char name[BUFFERS_LEN];
-//
-//     // load name an size
-//     char buffer[BUFFERS_LEN];
-//     pipe_.recv(buffer);
-//     if (isHeaderType(HeaderType::Name, buffer)) {
-//         int start = getSplitPos(HeaderType::Name);
-//         memcpy(name, buffer+start, BUFFERS_LEN-start);
-//     } 
-//     pipe_.recv(buffer);
-//     if (isHeaderType(HeaderType::Size, buffer)) {
-//         int start = getSplitPos(HeaderType::Size);
-//         char sizeBytes[BUFFERS_LEN];
-//         memcpy(sizeBytes, buffer+start, BUFFERS_LEN-start);
-//         size = atoi(sizeBytes);
-//     }
-//
-//     std::cout << "Filename: " << name << std::endl;
-//     fstream_ = std::ofstream(name, std::ios::binary);
-//     size_ = size;
-// }
 
 Pipe& Reciever::pipe() {
     return pipe_;

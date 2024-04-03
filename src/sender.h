@@ -3,10 +3,11 @@
 #include <fstream>
 #include <string>
 
+#include "hash.h"
 #include "message.h"
 #include "pipe.h"
 
-class Sender {
+class Sender : public Hasher {
 private:
     uint32_t size_;
     uint32_t position_;
@@ -22,6 +23,8 @@ public:
     void send(HeaderType type, int value);
     // send (with header types: name)
     void send(HeaderType type, std::string value);
+    // sends hash
+    void sendHash();
     // reads file chunk, sends it and increments position
     void sendChunk();
     // get size of the file

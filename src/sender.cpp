@@ -3,6 +3,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <openssl/md5.h>
 
 Sender::Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port) 
     :name_(name), position_(0), pipe_(remote_address, local_port, remote_port)
@@ -26,12 +27,18 @@ void Sender::send(HeaderType type, int value) {
 }
 
 void Sender::send(HeaderType type, std::string value) {
-    if (type != HeaderType::Name && type != HeaderType::Hash)
+    if (type != HeaderType::Name)
         return;
 
     std::stringstream msg;
     msg << getLabel(type) << "=" << value;
     pipe_.send(msg.str());
+}
+
+void Sender::sendHash() {
+    unsigned char* hash = getHash();
+    std::cout << std::hex << hash << std::endl;
+    pipe_.send((char*)hash, MD5_DIGEST_LENGTH);
 }
 
 void Sender::sendChunk() {
@@ -41,7 +48,6 @@ void Sender::sendChunk() {
     int offset = 4+4+1;
     // read file
     fstream_.read(buff, BUFFERS_LEN-offset);
-    // todo: update md5 context
     
     // create message bytes to send
     const int len = fstream_.gcount();
@@ -50,6 +56,7 @@ void Sender::sendChunk() {
     uint32_t pos = htons(position_);
     const char* label = getLabel(HeaderType::Data);
 
+    updateHash(buff, len);
     memcpy(bytes, label, 4);
     memcpy(bytes+4, &pos, 4);
     memcpy(bytes+8, buff, len);

@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 
 
 Pipe::Pipe(const char* remote_address, const int local_port, const int remote_port) {
@@ -34,7 +33,6 @@ Pipe::~Pipe() {
 
 // private
 size_t Pipe::sendBytes(const char *bytes, int len) {
-    std::cout << "bytes len: " << len << std::endl;
     return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_))-1; 
 }
 

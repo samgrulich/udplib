@@ -26,8 +26,6 @@
 #endif // RECEIVER
 
 
-std::string getFileHash(std::fstream& fstream);
-
 int main(int argc, char* argv[]) {
 #ifdef SENDER
     if (argc != 2) {
@@ -56,7 +54,7 @@ int main(int argc, char* argv[]) {
             sender.sendChunk();
         } while (!sender.eof());
         sender.send(HeaderType::Stop);
-        // sender.send(HeaderType::Hash, getFileHash(filePath));
+        sender.sendHash();
         pipe.recv(msg);
     } while (strcmp(msg, getLabel(HeaderType::FileAck)) != 0);
     std::cout << "File sent!" << std::endl;
@@ -75,15 +73,22 @@ int main(int argc, char* argv[]) {
     receiver.getPayloadString(&name);
     receiver.recv();
     int size = receiver.getPayloadInt();
-    receiver.recv();
-    receiver.recv();
     std::cout << "File: " << name << ", size: " << size << std::endl;
-    do { 
-        receiver.saveDataPayload();
-        receiver.recv();
-    } while (!receiver.hasHeader(HeaderType::Stop));
+    do {
+        receiver.recv(); // start
+        receiver.recv(); // first data 
+        do { 
+            receiver.saveDataPayload();
+            receiver.recv();
+        } while (!receiver.hasHeader(HeaderType::Stop)); // recv file
+        receiver.recv(); // hash
+        if(!receiver.matchHashes()) {
+            receiver.pipe().send(getLabel(HeaderType::FileError));
+            std::cout << "File recieve failed, restarting" << std::endl;
+        }
+    } while(!receiver.matchHashes()); // restart recv file
     receiver.pipe().send(getLabel(HeaderType::FileAck));
-    std::cout << "File received!" << std::endl;
+    std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER
     return 0;
 }

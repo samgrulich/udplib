@@ -1,10 +1,11 @@
 #pragma once
 #include "common.h"
+#include "hash.h"
 #include "message.h"
 #include "pipe.h"
 #include <fstream>
 
-class Reciever {
+class Reciever : Hasher {
 private:
     uint32_t size_;
     std::string name_;
@@ -21,6 +22,8 @@ public:
     int recv();
     // Check if incoming message has this type of header
     bool hasHeader(HeaderType type);
+    // get hash from payload and compare it with the calculated 
+    bool matchHashes();
     // strips header up to = and returns the string (works for name and hash)
     void getPayloadString(std::string* out);
     // Parse incoming payload as int (works only if header is size)
