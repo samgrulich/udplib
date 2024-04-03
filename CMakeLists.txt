@@ -11,8 +11,8 @@ add_executable(sender ${SOURCES})
 add_executable(receiver ${SOURCES})
 target_include_directories(sender PUBLIC "${CMAKE_SOURCE_DIR}/include/")
 target_include_directories(receiver PUBLIC "${CMAKE_SOURCE_DIR}/include/")
-target_link_libraries(sender PUBLIC CRCpp)
-target_link_libraries(receiver PUBLIC CRCpp)
+target_link_libraries(sender PUBLIC CRCpp ssl)
+target_link_libraries(receiver PUBLIC CRCpp ssl)
 
 SET (CMAKE_CXX_FLAGS "-std=c++20 -g -DLINUX")
 

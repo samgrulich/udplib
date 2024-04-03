@@ -8,9 +8,9 @@
 
 class Sender {
 private:
-    std::string name_;
     uint32_t size_;
     uint32_t position_;
+    std::string name_;
     std::ifstream fstream_;
     Pipe pipe_;
 public:
@@ -28,4 +28,6 @@ public:
     size_t size();
     // has the program reached end of file
     bool eof();
+    // get reference to the pipe
+    Pipe& pipe();
 };

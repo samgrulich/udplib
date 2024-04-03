@@ -26,7 +26,7 @@ void Sender::send(HeaderType type, int value) {
 }
 
 void Sender::send(HeaderType type, std::string value) {
-    if (type != HeaderType::Name)
+    if (type != HeaderType::Name && type != HeaderType::Hash)
         return;
 
     std::stringstream msg;
@@ -41,6 +41,7 @@ void Sender::sendChunk() {
     int offset = 4+4+1;
     // read file
     fstream_.read(buff, BUFFERS_LEN-offset);
+    // todo: update md5 context
     
     // create message bytes to send
     const int len = fstream_.gcount();
@@ -64,4 +65,8 @@ size_t Sender::size() {
 
 bool Sender::eof() {
     return fstream_.eof();
+}
+
+Pipe& Sender::pipe() {
+    return pipe_;
 }

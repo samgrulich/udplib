@@ -1,7 +1,10 @@
+#include <cstring>
+#include <fstream>
 #include <stdio.h>
-#include <thread>
 #include <iostream>
+#include <openssl/md5.h>
 
+#include "common.h"
 #include "message.h"
 #include "receiver.h"
 #include "sender.h"
@@ -22,9 +25,8 @@
 #define LOCAL_PORT 5001 
 #endif // RECEIVER
 
-using namespace std::chrono_literals;
-#define DELAY 100ms
 
+std::string getFileHash(std::fstream& fstream);
 
 int main(int argc, char* argv[]) {
 #ifdef SENDER
@@ -44,23 +46,45 @@ int main(int argc, char* argv[]) {
     std::cout << "Sending file: " << filePath << std::endl;
     Sender sender(filePath, TARGET_IP, LOCAL_PORT, TARGET_PORT);
     sender.send(HeaderType::Name, filePath);
-    std::this_thread::sleep_for(DELAY);
     sender.send(HeaderType::Size, sender.size());
-    std::this_thread::sleep_for(DELAY);
-    sender.send(HeaderType::Start);
+    // send file
+    char msg[BUFFERS_LEN];
+    Pipe& pipe = sender.pipe();
     do {
-        sender.sendChunk();
-        std::this_thread::sleep_for(DELAY);
-    } while (!sender.eof());
-    sender.send(HeaderType::Stop);
+        sender.send(HeaderType::Start);
+        do {
+            sender.sendChunk();
+        } while (!sender.eof());
+        sender.send(HeaderType::Stop);
+        // sender.send(HeaderType::Hash, getFileHash(filePath));
+        pipe.recv(msg);
+    } while (strcmp(msg, getLabel(HeaderType::FileAck)) != 0);
     std::cout << "File sent!" << std::endl;
 #endif // SENDER
 
 #ifdef RECEIVER
     std::cout << "Listening for incoming connection." << std::endl;
-    Receiver receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
-    receiver.listen();
+    Reciever receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
+    // initial recv 
+    receiver.recv();
+    if (!receiver.hasHeader(HeaderType::Name)) {
+        std::cout << "Wrong incoming packet" << std::endl;
+        return -1;
+    }
+    std::string name = "";
+    receiver.getPayloadString(&name);
+    receiver.recv();
+    int size = receiver.getPayloadInt();
+    receiver.recv();
+    receiver.recv();
+    std::cout << "File: " << name << ", size: " << size << std::endl;
+    do { 
+        receiver.saveDataPayload();
+        receiver.recv();
+    } while (!receiver.hasHeader(HeaderType::Stop));
+    receiver.pipe().send(getLabel(HeaderType::FileAck));
     std::cout << "File received!" << std::endl;
 #endif // RECEIVER
     return 0;
 }
+

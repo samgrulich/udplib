@@ -12,10 +12,16 @@ const char* getLabel(HeaderType type) {
             return "SIZE";
         case Data:
             return "DATA";
+        case Hash:
+            return "HASH";
         case Ack:
             return "ACK";
         case Error:
             return "ERROR";
+        case FileAck:
+            return "FILEACK";
+        case FileError:
+            return "FILEERROR";
     }
     return "";
 }
