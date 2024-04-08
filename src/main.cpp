@@ -9,10 +9,9 @@
 #include "sender.h"
 
 // #define SENDER
-#define RECEIVER
+// #define RECEIVER
 
-// #define TARGET_IP   "147.32.217.58"
-#define TARGET_IP   "147.32.217.243"
+#define TARGET_IP   "127.0.0.1"
 
 #ifdef SENDER
 #define TARGET_PORT 5001
