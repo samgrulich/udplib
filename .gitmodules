@@ -1,3 +1,6 @@
 [submodule "libs/CRCpp"]
 	path = libs/CRCpp
 	url = https://github.com/d-bahr/CRCpp/
+[submodule "libs/hashes"]
+	path = libs/hashes
+	url = https://github.com/stbrumme/hash-library.git
