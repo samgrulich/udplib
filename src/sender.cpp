@@ -2,7 +2,6 @@
 #include "common.h"
 #include <cstring>
 #include <filesystem>
-#include <openssl/md5.h>
 
 Sender::Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port) 
     :name_(name), position_(0), pipe_(remote_address, local_port, remote_port)

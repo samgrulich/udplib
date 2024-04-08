@@ -2,7 +2,7 @@
 #include "common.h"
 #include "message.h"
 
-#include <CRC/CRC.h>
+#include "CRC.h"
 
 #include <cstdint>
 #include <cstring>
@@ -57,7 +57,7 @@ size_t Pipe::send(const std::string& message) {
 
 size_t Pipe::send(const char* bytes, int len) {
     uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
-    char newBytes[len+4];
+    char *newBytes = new char [len+4];
 
     memcpy(newBytes, bytes, len);
     memcpy(newBytes+len, &crc, 4);

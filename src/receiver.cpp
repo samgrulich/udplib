@@ -27,7 +27,8 @@ bool Reciever::matchHashes() {
     std::string hash = getHash(); 
     std::string incoming;
     incoming.reserve(32+1);
-    memcpy(&incoming[0], buffer_, 32+1);
+    //memcpy(&incoming[0], buffer_, 32+1);
+    incoming = buffer_;
     std::cout << hash.length() << std::endl;
     std::cout << hash << std::endl;
     std::cout << incoming << std::endl;
@@ -62,9 +63,10 @@ int Reciever::getPayloadInt() {
     if (!hasHeader(HeaderType::Size)) 
         return 0;
     int start = getSplitPos(HeaderType::Size);
-    char sizeBytes[bufferLen_-start];
+    char *sizeBytes = new char [bufferLen_-start];
     memcpy(sizeBytes, buffer_+start, bufferLen_-start-1);
     size_ = atoi(sizeBytes);
+    delete[] sizeBytes;
     return size_;
 }
 

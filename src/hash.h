@@ -1,5 +1,5 @@
 #pragma once
-#include <hashes/md5.h>
+#include "md5.h"
 #include <string>
 
 class Hasher {

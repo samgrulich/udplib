@@ -1,5 +1,4 @@
 #include "hash.h"
-#include <openssl/md5.h>
 
 Hasher::Hasher() {
 }

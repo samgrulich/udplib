@@ -128,15 +128,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\libs\hashes\md5.cpp" />
+    <ClCompile Include="hash.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="message.cpp" />
     <ClCompile Include="pipe.cpp" />
     <ClCompile Include="receiver.cpp" />
     <ClCompile Include="sender.cpp" />
-    <ClCompile Include="uniudp.cpp" />
     <ClCompile Include="windowsSockets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\libs\CRCpp\inc\CRC.h" />
+    <ClInclude Include="..\libs\hashes\md5.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="hash.h" />
     <ClInclude Include="linuxSockets.h" />
     <ClInclude Include="message.h" />
     <ClInclude Include="pipe.h" />
