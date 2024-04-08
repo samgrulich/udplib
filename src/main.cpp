@@ -2,7 +2,6 @@
 #include <fstream>
 #include <stdio.h>
 #include <iostream>
-#include <openssl/md5.h>
 
 #include "common.h"
 #include "message.h"
@@ -12,8 +11,8 @@
 // #define SENDER
 // #define RECEIVER
 
-#define TARGET_IP   "147.32.217.58"
-// #define TARGET_IP   "127.0.0.1"
+// #define TARGET_IP   "147.32.217.58"
+#define TARGET_IP   "127.0.0.1"
 
 #ifdef SENDER
 #define TARGET_PORT 5001

@@ -1,7 +1,7 @@
 #include "receiver.h"
 #include "message.h"
 #include <cstring>
-#include <openssl/md5.h>
+#include <iostream>
 
 Reciever::Reciever(const char* remote_address, const int local_port, const int remote_port) 
     : size_(0), pipe_(remote_address, local_port, remote_port), bufferLen_(0)
@@ -24,10 +24,15 @@ int Reciever::recv() {
 }
 
 bool Reciever::matchHashes() {
-    unsigned char* hash = getHash(); 
-    unsigned char incoming[MD5_DIGEST_LENGTH];
-    memcpy(incoming, buffer_, MD5_DIGEST_LENGTH);
-    return memcmp(incoming, hash, MD5_DIGEST_LENGTH) == 0;
+    std::string hash = getHash(); 
+    std::string incoming;
+    incoming.reserve(32+1);
+    memcpy(&incoming[0], buffer_, 32+1);
+    std::cout << hash.length() << std::endl;
+    std::cout << hash << std::endl;
+    std::cout << incoming << std::endl;
+    // return memcmp(incoming, hash, MD5_DIGEST_LENGTH) == 0;
+    return hash == incoming;
 }
 
 bool Reciever::hasHeader(HeaderType type) {

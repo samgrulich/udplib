@@ -35,8 +35,8 @@ void Sender::send(HeaderType type, std::string value) {
 }
 
 void Sender::sendHash() {
-    unsigned char* hash = getHash();
-    pipe_.send((char*)hash, MD5_DIGEST_LENGTH);
+    std::string hash = getHash();
+    pipe_.send(hash);
 }
 
 void Sender::sendChunk() {

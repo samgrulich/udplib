@@ -2,16 +2,15 @@
 #include <openssl/md5.h>
 
 Hasher::Hasher() {
-    MD5_Init(&ctx_);
 }
 
 void Hasher::updateHash(char* bytes, int len) {
-    MD5_Update(&ctx_, bytes, len);
+    ctx_.add(bytes, len);
 }
 
-unsigned char* Hasher::getHash() {
+std::string Hasher::getHash() {
     if (!isDigested_) {
-        MD5_Final(hash_, &ctx_);
+        hash_ = ctx_.getHash();
         isDigested_ = true;
     }
     return hash_;
