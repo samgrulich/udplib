@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 
 
 Pipe::Pipe(const char* remote_address, const int local_port, const int remote_port) {
@@ -66,9 +67,12 @@ size_t Pipe::send(const char* bytes, int len) {
     size_t sendLen; 
     char msg[BUFFERS_LEN];
     do {
+        std::cout << "Sending message: " << newBytes << std::endl;
         sendLen = sendBytes(newBytes, len+4);
         recvBytes(msg);
-    } while(strcmp(msg, getLabel(HeaderType::Ack)) != 0);
+        std::cout << "MSG " << msg << std::endl;
+        std::cout << "ISACK " << strcmp(msg, getLabel(HeaderType::Ack)) << std::endl;
+    } while(strlen(msg) != strlen(getLabel(HeaderType::Ack)));
 
     return sendLen;
 }

@@ -11,7 +11,7 @@
 // #define SENDER
 // #define RECEIVER
 
-#define TARGET_IP   "147.32.218.176"
+#define TARGET_IP   "127.0.0.1"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
