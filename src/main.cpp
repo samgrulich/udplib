@@ -2,6 +2,7 @@
 #include <fstream>
 #include <stdio.h>
 #include <iostream>
+#include <thread>
 
 #include "common.h"
 #include "message.h"
@@ -12,20 +13,24 @@
 // #define RECEIVER
 
 #define TARGET_IP   "127.0.0.1"
+// #define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
 #define LOCAL_PORT 5001
 #endif // SENDER
 
-#ifdef RECEIVER
-#define TARGET_PORT 4001 
-#define LOCAL_PORT 5000 
-#endif // RECEIVER
 // #ifdef RECEIVER
-// #define TARGET_PORT 5001
-// #define LOCAL_PORT 4000 
+// #define TARGET_PORT 4001 
+// #define LOCAL_PORT 5000 
 // #endif // RECEIVER
+#ifdef RECEIVER
+#define TARGET_PORT 5001 
+#define LOCAL_PORT 4000 
+#endif // RECEIVER
+
+
+using namespace std::chrono_literals;
 
 
 int main(int argc, char* argv[]) {
@@ -94,6 +99,7 @@ int main(int argc, char* argv[]) {
             std::cout << "File recieve failed, restarting" << std::endl;
         }
     } while(!receiver.matchHashes()); // restart recv file
+    std::this_thread::sleep_for(100ms);
     receiver.pipe().send(getLabel(HeaderType::FileAck));
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER

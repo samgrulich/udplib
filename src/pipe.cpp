@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <thread>
 #include <iostream>
 
 
@@ -32,6 +33,13 @@ Pipe::~Pipe() {
     closesocket(socket_);
 }
 
+void Pipe::set_timeout() {
+    struct timeval timeout_ = {
+        .tv_sec = 1,
+    };
+    setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, &timeout_, sizeof(timeout_));
+}
+
 // private
 size_t Pipe::sendBytes(const char *bytes, int len) {
     return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
@@ -41,13 +49,10 @@ size_t Pipe::sendBytes(const char *bytes, int len) {
 size_t Pipe::recvBytes(char* buffer) {
     char buff[BUFFERS_LEN];
 
-    size_t size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);
+    size_t size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);;
 
-    if (size == -1) {
-        throw "Socket error";
-    }
-
-    memcpy(buffer, buff, size);
+    if (size != -1)
+        memcpy(buffer, buff, size);
     return size;
 }
 
@@ -57,6 +62,8 @@ size_t Pipe::send(const std::string& message) {
 }
 
 size_t Pipe::send(const char* bytes, int len) {
+    using namespace std::chrono_literals;
+
     uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
     char *newBytes = new char [len+4];
 
@@ -69,12 +76,17 @@ size_t Pipe::send(const char* bytes, int len) {
     size_t msgLen;
     do {
         std::cout << "Sending message: " << newBytes << std::endl;
-        sendLen = sendBytes(newBytes, len+4);
-        msgLen = recvBytes(msg)-1;
+        do {
+            sendLen = sendBytes(newBytes, len+4);
+            msgLen = recvBytes(msg)-1;
+            if (msgLen == -1)
+                std::this_thread::sleep_for(100ms);
+        } while(msgLen == -1);
         std::cout << "MSG " << msg << std::endl;
         std::cout << "ISACK " << (msgLen == strlen(getLabel(HeaderType::Ack))) << std::endl;
         std::cout << "x " << msgLen << ", y " << strlen(getLabel(HeaderType::Ack)) << std::endl;
     } while(msgLen != strlen(getLabel(HeaderType::Ack)));
+    set_timeout();
 
     return sendLen;
 }

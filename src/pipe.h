@@ -30,6 +30,8 @@ public:
      */ 
     Pipe(const char* remote_address, const int local_port, const int remote_port);
     ~Pipe();
+    // sets socket timeout to 1s
+    void set_timeout();
     // sends string to the remote
     size_t send(const std::string& message);
     size_t send(const char* bytes, int len);
