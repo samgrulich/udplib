@@ -22,6 +22,10 @@
 #define TARGET_PORT 4001 
 #define LOCAL_PORT 5000 
 #endif // RECEIVER
+// #ifdef RECEIVER
+// #define TARGET_PORT 5001
+// #define LOCAL_PORT 4000 
+// #endif // RECEIVER
 
 
 int main(int argc, char* argv[]) {
@@ -41,17 +45,22 @@ int main(int argc, char* argv[]) {
 #ifdef SENDER
     std::cout << "Sending file: " << filePath << std::endl;
     Sender sender(filePath, TARGET_IP, LOCAL_PORT, TARGET_PORT);
+    std::cout << "Name" << std::endl;
     sender.send(HeaderType::Name, filePath);
+    std::cout << "Size" << std::endl;
     sender.send(HeaderType::Size, sender.size());
     // send file
     char msg[BUFFERS_LEN];
     Pipe& pipe = sender.pipe();
+    std::cout << "Data" << std::endl;
     do {
         sender.send(HeaderType::Start);
         do {
             sender.sendChunk();
         } while (!sender.eof());
+        std::cout << "Stop" << std::endl;
         sender.send(HeaderType::Stop);
+        std::cout << "Hash" << std::endl;
         sender.sendHash();
         pipe.recv(msg);
     } while (strcmp(msg, getLabel(HeaderType::FileAck)) != 0);

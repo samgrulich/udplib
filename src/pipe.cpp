@@ -34,7 +34,7 @@ Pipe::~Pipe() {
 
 // private
 size_t Pipe::sendBytes(const char *bytes, int len) {
-    return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_))-1; 
+    return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
 }
 
 // private
@@ -66,13 +66,15 @@ size_t Pipe::send(const char* bytes, int len) {
     // wait for response
     size_t sendLen; 
     char msg[BUFFERS_LEN];
+    size_t msgLen;
     do {
         std::cout << "Sending message: " << newBytes << std::endl;
         sendLen = sendBytes(newBytes, len+4);
-        recvBytes(msg);
+        msgLen = recvBytes(msg)-1;
         std::cout << "MSG " << msg << std::endl;
-        std::cout << "ISACK " << strcmp(msg, getLabel(HeaderType::Ack)) << std::endl;
-    } while(strlen(msg) != strlen(getLabel(HeaderType::Ack)));
+        std::cout << "ISACK " << (msgLen == strlen(getLabel(HeaderType::Ack))) << std::endl;
+        std::cout << "x " << msgLen << ", y " << strlen(getLabel(HeaderType::Ack)) << std::endl;
+    } while(msgLen != strlen(getLabel(HeaderType::Ack)));
 
     return sendLen;
 }
