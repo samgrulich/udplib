@@ -12,8 +12,6 @@ const char* getLabel(HeaderType type) {
             return "SIZE";
         case Data:
             return "DATA";
-        case Hash:
-            return "HASH";
         case Ack:
             return "ACK";
         case Error:
@@ -22,6 +20,8 @@ const char* getLabel(HeaderType type) {
             return "FILEACK";
         case FileError:
             return "FILEERROR";
+        default:
+            return "";
     }
     return "";
 }

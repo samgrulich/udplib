@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Hash" << std::endl;
         sender.sendHash();
         std::cout << "Waiting for fileack" << std::endl;
-        pipe.recv(msg);
+        pipe.recv(msg); // will break if there are still coming previous packet
     } while (strcmp(msg, getLabel(HeaderType::FileAck)) != 0);
     std::cout << "File sent!" << std::endl;
 #endif // SENDER
@@ -70,24 +70,20 @@ int main(int argc, char* argv[]) {
     std::cout << "Listening for incoming connection." << std::endl;
     Reciever receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
     // initial recv 
-    receiver.recv();
-    if (!receiver.hasHeader(HeaderType::Name)) {
-        std::cout << "Wrong incoming packet" << std::endl;
-        return -1;
-    }
+    receiver.recv(HeaderType::Name);
     std::string name = "";
     receiver.getPayloadString(&name);
-    receiver.recv();
+    receiver.recv(HeaderType::Size);
     int size = receiver.getPayloadInt();
     std::cout << "File: " << name << ", size: " << size << std::endl;
     do {
-        receiver.recv(); // start
-        receiver.recv(); // first data 
+        receiver.recv(HeaderType::Start); // start
+        receiver.recv(HeaderType::Data); // first data 
         do { 
             receiver.saveDataPayload();
-            receiver.recv();
+            receiver.recv(HeaderType::Data);
         } while (!receiver.hasHeader(HeaderType::Stop)); // recv file
-        receiver.recv(); // hash
+        receiver.recv(HeaderType::Hash); // hash
         if(!receiver.matchHashes()) {
             receiver.pipe().send(getLabel(HeaderType::FileError));
             std::cout << "File recieve failed, restarting" << std::endl;

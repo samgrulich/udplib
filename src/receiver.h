@@ -19,7 +19,7 @@ public:
     /** Blocks until a packet comes in.
      * Then stores the incoming mesage
      */
-    int recv();
+    int recv(HeaderType type);
     // Check if incoming message has this type of header
     bool hasHeader(HeaderType type);
     // get hash from payload and compare it with the calculated 

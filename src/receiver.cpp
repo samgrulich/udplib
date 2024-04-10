@@ -17,8 +17,10 @@ void stripDataHeader(char* msg) {
     memcpy(msg, msg+4+4, BUFFERS_LEN-4-4);
 }
 
-int Reciever::recv() {
-    bufferLen_ = pipe_.recv(buffer_);
+int Reciever::recv(HeaderType type) {
+    do {
+        bufferLen_ = pipe_.recv(buffer_);
+    } while(!hasHeader(type)); // in case of incoming previous packets
     return bufferLen_;
 }
 
