@@ -47,12 +47,12 @@ void Pipe::set_timeout() {
 
 // private
 long Pipe::sendBytes(const char *bytes, int len) {
-    sendId_++;
     return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
 }
 
 // private
 long Pipe::sendBytesCRC(const char *bytes, int len) {
+    sendId_++;
     uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
     char *newBytes = new char [len+4];
     memcpy(newBytes, &sendId_, 4);
@@ -85,7 +85,7 @@ long Pipe::recvBytesCRC(char* buffer) {
         return SOCKET_ERR;
     // check recvId
     uint32_t recvId;
-    memcpy(&recvId, buffer+4, 4);
+    memcpy(&recvId, buffer, 4);
     if (recvId == recvId_)
         return ID_ERR;
     // possible packet loss
@@ -93,8 +93,9 @@ long Pipe::recvBytesCRC(char* buffer) {
 
     // check crc
     uint32_t crc;
-    memcpy(&crc, buffer, 4);
-    return crc == CRC::Calculate(buffer, size-4, CRC::CRC_32()) ? size : CRC_ERR;
+    memcpy(&crc, buffer+4, 4);
+    memcpy(buffer, buffer+8, size-8);
+    return crc == CRC::Calculate(buffer+8, size-8, CRC::CRC_32()) ? size-8 : CRC_ERR;
 }
 
 long Pipe::send(const std::string& message) {
@@ -128,6 +129,8 @@ long Pipe::recv(char* buffer) {
         len = recvBytesCRC(buffer);
         if (len == CRC_ERR) // not matching crc
             sendBytesCRC(getLabel(HeaderType::Error)); // send error
+        std::cout << "Len: " << len << std::endl;
+        std::cout << "Received: " << buffer << std::endl;
     } while(len < 0);
 
     // ack
