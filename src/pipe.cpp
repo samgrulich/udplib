@@ -54,11 +54,11 @@ long Pipe::sendBytes(const char *bytes, int len) {
 long Pipe::sendBytesCRC(const char *bytes, int len) {
     sendId_++;
     uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
-    char *newBytes = new char [len+4];
+    char *newBytes = new char [len+8];
     memcpy(newBytes, &sendId_, 4);
     memcpy(newBytes+4, &crc, 4);
     memcpy(newBytes+8, bytes, len);
-    return sendBytes(newBytes, len+4);
+    return sendBytes(newBytes, len+8);
 }
 
 // private 
@@ -94,8 +94,9 @@ long Pipe::recvBytesCRC(char* buffer) {
     // check crc
     uint32_t crc;
     memcpy(&crc, buffer+4, 4);
-    memcpy(buffer, buffer+8, size-8);
-    return crc == CRC::Calculate(buffer+8, size-8, CRC::CRC_32()) ? size-8 : CRC_ERR;
+    size = size-8;
+    memcpy(buffer, buffer+8, size);
+    return crc == CRC::Calculate(buffer, size, CRC::CRC_32()) ? size : CRC_ERR;
 }
 
 long Pipe::send(const std::string& message) {
@@ -116,7 +117,9 @@ long Pipe::send(const char* bytes, int len) {
             sendLen = sendBytesCRC(bytes, len);
             responseLen = recvBytesCRC(response); 
         }
-    } while(responseLen != strlen(getLabel(HeaderType::Ack)));
+        std::cout << "Response: " << response << std::endl;
+        std::cout << responseLen << std::endl;
+    } while(strcmp(response, (getLabel(HeaderType::Ack))) != 0);
     set_timeout(); // set timout after first successful send (also sets for each following :))
 
     return sendLen;
@@ -134,8 +137,7 @@ long Pipe::recv(char* buffer) {
     } while(len < 0);
 
     // ack
-    std::string msg = getLabel(HeaderType::Ack);
-    sendBytesCRC(msg.c_str(), msg.length()+1);
+    sendBytesCRC(getLabel(HeaderType::Ack));
 
     return len;
 }
