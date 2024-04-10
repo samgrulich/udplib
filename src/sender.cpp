@@ -2,6 +2,7 @@
 #include "common.h"
 #include <cstring>
 #include <filesystem>
+#include <sstream>
 
 Sender::Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port) 
     :name_(name), position_(0), pipe_(remote_address, local_port, remote_port)
@@ -34,8 +35,10 @@ void Sender::send(HeaderType type, std::string value) {
 }
 
 void Sender::sendHash() {
-    std::string hash = getHash();
-    pipe_.send(hash);
+    std::stringstream msg; 
+    msg << getLabel(HeaderType::Hash) << "=";
+    msg << getHash();
+    pipe_.send(msg.str());
 }
 
 void Sender::sendChunk() {

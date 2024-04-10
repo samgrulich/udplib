@@ -36,7 +36,7 @@ void Pipe::set_timeout() {
     struct timeval timeout_ = {
         .tv_sec = 1,
     };
-    setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, &timeout_, sizeof(timeout_));
+    setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_, sizeof(timeout_));
 }
 
 // private

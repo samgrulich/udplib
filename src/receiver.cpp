@@ -28,7 +28,7 @@ bool Reciever::matchHashes() {
     std::string hash = getHash(); 
     std::string incoming;
     incoming.reserve(32+1);
-    incoming = buffer_;
+    incoming = buffer_+5;
     return hash == incoming;
 }
 
