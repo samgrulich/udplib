@@ -46,6 +46,14 @@ size_t Pipe::sendBytes(const char *bytes, int len) {
     return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
 }
 
+size_t Pipe::sendBytesCRC(const char *bytes, int len) {
+    uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
+    char *newBytes = new char [len+4];
+    memcpy(newBytes, bytes, len);
+    memcpy(newBytes+len, &crc, 4);
+    return sendto(socket_, newBytes, len+4, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
+}
+
 // private
 size_t Pipe::recvBytes(char* buffer) {
     char buff[BUFFERS_LEN];
@@ -58,32 +66,32 @@ size_t Pipe::recvBytes(char* buffer) {
     return size;
 }
 
+bool Pipe::crcMatches(const char* bytes, int len) {
+    long msgLen = len-4;
+    uint32_t crc;
+    memcpy(&crc, bytes+msgLen, 4);
+    return crc == CRC::Calculate(bytes, len, CRC::CRC_32());
+}
+
 size_t Pipe::send(const std::string& message) {
-    // return sendto(socket_, message.c_str(), message.length()+1, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
     return send(message.c_str(), message.length()+1);
 }
 
 size_t Pipe::send(const char* bytes, int len) {
     using namespace std::chrono_literals;
 
-    uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
-    char *newBytes = new char [len+4];
-
-    memcpy(newBytes, bytes, len);
-    memcpy(newBytes+len, &crc, 4);
-
     // wait for response
     size_t sendLen; 
-    char msg[BUFFERS_LEN];
-    size_t msgLen;
+    char response[BUFFERS_LEN];
+    size_t responseLen;
     do {
         do {
-            sendLen = sendBytes(newBytes, len+4);
-            msgLen = recvBytes(msg)-1;
-            if (msgLen == -1)
-                std::this_thread::sleep_for(100ms);
-        } while(msgLen == -1);
-    } while(msgLen != strlen(getLabel(HeaderType::Ack)));
+            sendLen = sendBytesCRC(bytes, len); // length of message + crc
+            responseLen = recvBytes(response); 
+            if (responseLen == -1)
+                std::this_thread::sleep_for(10ms);
+        } while(responseLen == -1 || !crcMatches(response, responseLen));
+    } while(responseLen != strlen(getLabel(HeaderType::Ack)));
     set_timeout();
 
     return sendLen;
@@ -92,23 +100,19 @@ size_t Pipe::send(const char* bytes, int len) {
 size_t Pipe::recv(char* buffer) {
     // unpack message
     size_t len = recvBytes(buffer)-4;
-    uint32_t crc;
-    memcpy(&crc, buffer+len, 4);
 
     // verify crc
-    std::cout << std::hex << buffer << std::endl;
-    while(crc != CRC::Calculate(buffer, len, CRC::CRC_32())) {
+    while(!crcMatches(buffer, len)) {
         errors_++;
         std::string msg = getLabel(HeaderType::Error);
-        sendBytes(msg.c_str(), msg.length()+1);
+        sendBytesCRC(msg.c_str(), msg.length()+1);
         // unpack new mesasge
         len = recvBytes(buffer)-4;
-        memcpy(&crc, buffer+len, 4);
     } 
 
     // ack
     std::string msg = getLabel(HeaderType::Ack);
-    sendBytes(msg.c_str(), msg.length()+1);
+    sendBytesCRC(msg.c_str(), msg.length()+1);
 
     return len;
 }

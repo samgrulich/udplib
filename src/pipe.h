@@ -15,6 +15,8 @@ private:
 private:
     // sends bytes array to the remote
     size_t sendBytes(const char* bytes, int len);
+    // sends bytes array to the remote
+    size_t sendBytesCRC(const char* bytes, int len);
     /** Recevies the incoming byte array
      *  and writes it to the buffer 
      *  (!!the buffer must be initialized at or greater than BUFFERS_LEN size)
@@ -30,6 +32,7 @@ public:
      */ 
     Pipe(const char* remote_address, const int local_port, const int remote_port);
     ~Pipe();
+    bool crcMatches(const char* bytes, int len);
     // sets socket timeout to 1s
     void set_timeout();
     // sends string to the remote
