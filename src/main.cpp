@@ -12,12 +12,15 @@
 // #define SENDER
 // #define RECEIVER
 
-#define TARGET_IP   "127.0.0.1"
+// #define TARGET_IP   "127.0.0.1"
+#define TARGET_IP   "147.32.219.23"
 // #define TARGET_IP   "10.0.0.20"
 
 #ifdef SENDER
-#define TARGET_PORT 4000
-#define LOCAL_PORT 5001
+// #define TARGET_PORT 4000
+// #define LOCAL_PORT 5001
+#define LOCAL_PORT 4001 
+#define TARGET_PORT 5000 
 #endif // SENDER
 
 #ifdef RECEIVER
@@ -81,7 +84,7 @@ int main(int argc, char* argv[]) {
         receiver.recv(HeaderType::Data); // first data 
         do { 
             receiver.saveDataPayload();
-            receiver.recv(HeaderType::Data);
+            receiver.recv();
         } while (!receiver.hasHeader(HeaderType::Stop)); // recv file
         receiver.recv(HeaderType::Hash); // hash
         if(!receiver.matchHashes()) {

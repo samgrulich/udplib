@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <ios>
+#include <iostream>
 #include <thread>
 
 
@@ -48,8 +50,9 @@ size_t Pipe::sendBytes(const char *bytes, int len) {
 size_t Pipe::recvBytes(char* buffer) {
     char buff[BUFFERS_LEN];
 
-    size_t size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);;
+    long size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);;
 
+    std::cout << size << std::endl;
     if (size != -1)
         memcpy(buffer, buff, size);
     return size;
@@ -93,6 +96,7 @@ size_t Pipe::recv(char* buffer) {
     memcpy(&crc, buffer+len, 4);
 
     // verify crc
+    std::cout << std::hex << buffer << std::endl;
     while(crc != CRC::Calculate(buffer, len, CRC::CRC_32())) {
         errors_++;
         std::string msg = getLabel(HeaderType::Error);

@@ -24,6 +24,11 @@ int Reciever::recv(HeaderType type) {
     return bufferLen_;
 }
 
+int Reciever::recv() {
+    bufferLen_ = pipe_.recv(buffer_);
+    return bufferLen_;
+}
+
 bool Reciever::matchHashes() {
     std::string hash = getHash(); 
     std::string incoming;
