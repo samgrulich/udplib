@@ -1,4 +1,6 @@
 #pragma once 
+#include <cstdint>
+#include <cstdlib>
 #include <string>
 
 #include "socket.h"
@@ -11,19 +13,29 @@ private:
     struct sockaddr_in local_;
     struct sockaddr_in dest_;
     struct sockaddr_in from_;
-    int errors_ = 0;
+    uint32_t sendId_ = -1;
+    uint32_t recvId_ = -1;
 private:
     // sends bytes array to the remote
-    size_t sendBytes(const char* bytes, int len);
+    long sendBytes(const char* bytes, int len);
     // sends bytes array to the remote
-    size_t sendBytesCRC(const char* bytes, int len);
+    long sendBytesCRC(const char* bytes, int len);
+    // sends bytes array to the remote
+    long sendBytesCRC(const std::string& message);
     /** Recevies the incoming byte array
      *  and writes it to the buffer 
      *  (!!the buffer must be initialized at or greater than BUFFERS_LEN size)
      *  @param buffer(out) buffer for writing of incoming byte array (!must be initialized)
      *  @return bytes received
      */
-    size_t recvBytes(char* buffer);
+    long recvBytes(char* buffer);
+    /** Recevies the incoming byte array
+     *  and writes it to the buffer 
+     *  (!!the buffer must be initialized at or greater than BUFFERS_LEN size)
+     *  @param buffer(out) buffer for writing of incoming byte array (!must be initialized)
+     *  @return bytes received or -1 socketerr, -2 iderr, -3 crcerr
+     */
+    long recvBytesCRC(char* buffer);
 public:
     /** create new pipe
      *  @param remote_address the ipv4 address of remote host
@@ -32,12 +44,11 @@ public:
      */ 
     Pipe(const char* remote_address, const int local_port, const int remote_port);
     ~Pipe();
-    bool crcMatches(const char* bytes, int len);
     // sets socket timeout to 1s
     void set_timeout();
     // sends string to the remote
-    size_t send(const std::string& message);
-    size_t send(const char* bytes, int len);
+    long send(const std::string& message);
+    long send(const char* bytes, int len);
     /**
      * Blocks until a packet arrives, then 
      * sends acknowledgement, or error message in this 
@@ -45,5 +56,5 @@ public:
      * @param buffer(out) must be initialized of size at least BUFFERS_LEN
      * @return bytes received (without null char)
      */
-    size_t recv(char* buffer);
+    long recv(char* buffer);
 };

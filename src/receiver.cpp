@@ -22,13 +22,6 @@ int Reciever::recv() {
     return bufferLen_;
 }
 
-int Reciever::recv(HeaderType type) {
-    do {
-        bufferLen_ = pipe_.recv(buffer_);
-    } while(!hasHeader(type)); // in case of incoming previous packets
-    return bufferLen_;
-}
-
 bool Reciever::matchHashes() {
     std::string hash = getHash(); 
     std::string incoming;

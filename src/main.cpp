@@ -73,20 +73,20 @@ int main(int argc, char* argv[]) {
     std::cout << "Listening for incoming connection." << std::endl;
     Reciever receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
     // initial recv 
-    receiver.recv(HeaderType::Name);
+    receiver.recv();
     std::string name = "";
     receiver.getPayloadString(&name);
-    receiver.recv(HeaderType::Size);
+    receiver.recv();
     int size = receiver.getPayloadInt();
     std::cout << "File: " << name << ", size: " << size << std::endl;
     do {
-        receiver.recv(HeaderType::Start); // start
-        receiver.recv(HeaderType::Data); // first data 
+        receiver.recv(); // start
+        receiver.recv(); // first data 
         do { 
             receiver.saveDataPayload();
             receiver.recv();
         } while (!receiver.hasHeader(HeaderType::Stop)); // recv file
-        receiver.recv(HeaderType::Hash); // hash
+        receiver.recv(); // hash
         if(!receiver.matchHashes()) {
             receiver.pipe().send(getLabel(HeaderType::FileError));
             std::cout << "File recieve failed, restarting" << std::endl;

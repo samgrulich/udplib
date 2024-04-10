@@ -10,6 +10,10 @@
 #include <iostream>
 #include <thread>
 
+#define SOCKET_ERR -1
+#define ID_ERR -2
+#define CRC_ERR -3
+
 
 Pipe::Pipe(const char* remote_address, const int local_port, const int remote_port) {
     from_.sin_port = htons(remote_port);
@@ -42,73 +46,89 @@ void Pipe::set_timeout() {
 }
 
 // private
-size_t Pipe::sendBytes(const char *bytes, int len) {
+long Pipe::sendBytes(const char *bytes, int len) {
+    sendId_++;
     return sendto(socket_, bytes, len, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
 }
 
-size_t Pipe::sendBytesCRC(const char *bytes, int len) {
+// private
+long Pipe::sendBytesCRC(const char *bytes, int len) {
     uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
     char *newBytes = new char [len+4];
-    memcpy(newBytes, bytes, len);
-    memcpy(newBytes+len, &crc, 4);
-    return sendto(socket_, newBytes, len+4, 0, (struct sockaddr*)&dest_, sizeof(dest_)); 
+    memcpy(newBytes, &sendId_, 4);
+    memcpy(newBytes+4, &crc, 4);
+    memcpy(newBytes+8, bytes, len);
+    return sendBytes(newBytes, len+4);
+}
+
+// private 
+long Pipe::sendBytesCRC(const std::string& message) {
+    return sendBytesCRC(message.c_str(), message.length()+1);
 }
 
 // private
-size_t Pipe::recvBytes(char* buffer) {
+long Pipe::recvBytes(char* buffer) {
     char buff[BUFFERS_LEN];
 
     long size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);;
 
     std::cout << size << std::endl;
-    if (size != -1)
+    if (size != SOCKET_ERR)
         memcpy(buffer, buff, size);
     return size;
 }
 
-bool Pipe::crcMatches(const char* bytes, int len) {
-    long msgLen = len-4;
+// private
+long Pipe::recvBytesCRC(char* buffer) {
+    long size = recvBytes(buffer);
+    if (size == SOCKET_ERR)
+        return SOCKET_ERR;
+    // check recvId
+    uint32_t recvId;
+    memcpy(&recvId, buffer+4, 4);
+    if (recvId == recvId_)
+        return ID_ERR;
+    // possible packet loss
+    recvId_ = recvId;
+
+    // check crc
     uint32_t crc;
-    memcpy(&crc, bytes+msgLen, 4);
-    return crc == CRC::Calculate(bytes, len, CRC::CRC_32());
+    memcpy(&crc, buffer, 4);
+    return crc == CRC::Calculate(buffer, size-4, CRC::CRC_32()) ? size : CRC_ERR;
 }
 
-size_t Pipe::send(const std::string& message) {
+long Pipe::send(const std::string& message) {
     return send(message.c_str(), message.length()+1);
 }
 
-size_t Pipe::send(const char* bytes, int len) {
+long Pipe::send(const char* bytes, int len) {
     using namespace std::chrono_literals;
 
-    // wait for response
-    size_t sendLen; 
-    char response[BUFFERS_LEN];
-    size_t responseLen;
+    size_t sendLen; // bytes sent
+    size_t responseLen; // bytes received
+    char response[BUFFERS_LEN]; // response buffer
     do {
-        do {
-            sendLen = sendBytesCRC(bytes, len); // length of message + crc
-            responseLen = recvBytes(response); 
-            if (responseLen == -1)
-                std::this_thread::sleep_for(10ms);
-        } while(responseLen == -1 || !crcMatches(response, responseLen));
+        // initial send
+        sendLen = sendBytesCRC(bytes, len);
+        responseLen = recvBytesCRC(response); 
+        while(responseLen < 0) { // resend
+            sendLen = sendBytesCRC(bytes, len);
+            responseLen = recvBytesCRC(response); 
+        }
     } while(responseLen != strlen(getLabel(HeaderType::Ack)));
-    set_timeout();
+    set_timeout(); // set timout after first successful send (also sets for each following :))
 
     return sendLen;
 }
 
-size_t Pipe::recv(char* buffer) {
+long Pipe::recv(char* buffer) {
+    long len;
     // unpack message
-    size_t len = recvBytes(buffer)-4;
-
-    // verify crc
-    while(!crcMatches(buffer, len)) {
-        errors_++;
-        std::string msg = getLabel(HeaderType::Error);
-        sendBytesCRC(msg.c_str(), msg.length()+1);
-        // unpack new mesasge
-        len = recvBytes(buffer)-4;
-    } 
+    do {
+        len = recvBytesCRC(buffer);
+        if (len == CRC_ERR) // not matching crc
+            sendBytesCRC(getLabel(HeaderType::Error)); // send error
+    } while(len < 0);
 
     // ack
     std::string msg = getLabel(HeaderType::Ack);
