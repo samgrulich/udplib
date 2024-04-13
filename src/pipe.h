@@ -13,8 +13,7 @@ private:
     struct sockaddr_in local_;
     struct sockaddr_in dest_;
     struct sockaddr_in from_;
-    uint32_t sendId_ = -1;
-    uint32_t recvId_ = -1;
+    int32_t packetId_ = -1;
 private:
     // sends bytes array to the remote
     long sendBytes(const char* bytes, int len);
@@ -57,4 +56,5 @@ public:
      * @return bytes received (without null char)
      */
     long recv(char* buffer);
+    void incrementPacketId();
 };

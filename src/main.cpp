@@ -73,25 +73,33 @@ int main(int argc, char* argv[]) {
     std::cout << "Listening for incoming connection." << std::endl;
     Reciever receiver(TARGET_IP, LOCAL_PORT, TARGET_PORT);
     // initial recv 
+    std::cout << "Waiting for name" << std::endl;
     receiver.recv();
     std::string name = "";
     receiver.getPayloadString(&name);
+    std::cout << "Waiting for size" << std::endl;
     receiver.recv();
     int size = receiver.getPayloadInt();
     std::cout << "File: " << name << ", size: " << size << std::endl;
     do {
+        std::cout << "Waiting for start" << std::endl;
         receiver.recv(); // start
+        std::cout << "Receiving file" << std::endl;
         receiver.recv(); // first data 
         do { 
             receiver.saveDataPayload();
+            std::cout << "Waiting for next data" << std::endl;
             receiver.recv();
         } while (!receiver.hasHeader(HeaderType::Stop)); // recv file
+        std::cout << "Waiting for hash" << std::endl;
         receiver.recv(); // hash
         if(!receiver.matchHashes()) {
             receiver.pipe().send(getLabel(HeaderType::FileError));
             std::cout << "File recieve failed, restarting" << std::endl;
         }
+        std::cout << "After hash match" << std::endl;
     } while(!receiver.matchHashes()); // restart recv file
+    std::cout << "Sending fileack" << std::endl;
     receiver.pipe().send(getLabel(HeaderType::FileAck));
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER

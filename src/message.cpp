@@ -34,6 +34,8 @@ size_t getSplitPos(HeaderType type) {
             return 5;
         case Size:
             return 5;
+        case Hash:
+            return 5;
         case Ack:
             return 3;
         default:

@@ -8,7 +8,6 @@
 #include <cstring>
 #include <ios>
 #include <iostream>
-#include <thread>
 
 #define SOCKET_ERR -1
 #define ID_ERR -2
@@ -52,12 +51,12 @@ long Pipe::sendBytes(const char *bytes, int len) {
 
 // private
 long Pipe::sendBytesCRC(const char *bytes, int len) {
-    sendId_++;
-    uint32_t crc = CRC::Calculate(bytes, len, CRC::CRC_32());
     char *newBytes = new char [len+8];
-    memcpy(newBytes, &sendId_, 4);
-    memcpy(newBytes+4, &crc, 4);
+    memcpy(newBytes+4, &packetId_, 4);
     memcpy(newBytes+8, bytes, len);
+
+    uint32_t crc = CRC::Calculate(bytes+4, len+4, CRC::CRC_32());
+    memcpy(newBytes, &crc, 4);
     return sendBytes(newBytes, len+8);
 }
 
@@ -70,7 +69,7 @@ long Pipe::sendBytesCRC(const std::string& message) {
 long Pipe::recvBytes(char* buffer) {
     char buff[BUFFERS_LEN];
 
-    long size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);;
+    long size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);
 
     std::cout << size << std::endl;
     if (size != SOCKET_ERR)
@@ -83,20 +82,25 @@ long Pipe::recvBytesCRC(char* buffer) {
     long size = recvBytes(buffer);
     if (size == SOCKET_ERR)
         return SOCKET_ERR;
-    // check recvId
-    uint32_t recvId;
-    memcpy(&recvId, buffer, 4);
-    if (recvId == recvId_)
-        return ID_ERR;
-    // possible packet loss
-    recvId_ = recvId;
 
     // check crc
     uint32_t crc;
-    memcpy(&crc, buffer+4, 4);
+    memcpy(&crc, buffer, 4);
+    if (crc != CRC::Calculate(buffer+4, size-4, CRC::CRC_32()))
+        return CRC_ERR;
+    
+    // check recvId
+    int32_t packetId;
+    memcpy(&packetId, buffer+4, 4);
+    if (packetId < packetId_)
+        return ID_ERR;
+
+    if (packetId > packetId_)
+        packetId_ = packetId;
+   
     size = size-8;
     memcpy(buffer, buffer+8, size);
-    return crc == CRC::Calculate(buffer, size, CRC::CRC_32()) ? size : CRC_ERR;
+    return size;
 }
 
 long Pipe::send(const std::string& message) {
@@ -104,11 +108,10 @@ long Pipe::send(const std::string& message) {
 }
 
 long Pipe::send(const char* bytes, int len) {
-    using namespace std::chrono_literals;
-
     size_t sendLen; // bytes sent
-    size_t responseLen; // bytes received
+    long responseLen; // bytes received
     char response[BUFFERS_LEN]; // response buffer
+    packetId_++;
     do {
         // initial send
         sendLen = sendBytesCRC(bytes, len);
@@ -117,8 +120,6 @@ long Pipe::send(const char* bytes, int len) {
             sendLen = sendBytesCRC(bytes, len);
             responseLen = recvBytesCRC(response); 
         }
-        std::cout << "Response: " << response << std::endl;
-        std::cout << responseLen << std::endl;
     } while(strcmp(response, (getLabel(HeaderType::Ack))) != 0);
     set_timeout(); // set timout after first successful send (also sets for each following :))
 
@@ -132,12 +133,14 @@ long Pipe::recv(char* buffer) {
         len = recvBytesCRC(buffer);
         if (len == CRC_ERR) // not matching crc
             sendBytesCRC(getLabel(HeaderType::Error)); // send error
-        std::cout << "Len: " << len << std::endl;
-        std::cout << "Received: " << buffer << std::endl;
     } while(len < 0);
 
     // ack
     sendBytesCRC(getLabel(HeaderType::Ack));
 
     return len;
+}
+
+void Pipe::incrementPacketId() {
+    packetId_++;
 }
