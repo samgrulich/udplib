@@ -1,6 +1,7 @@
 #include "receiver.h"
 #include "message.h"
 #include <cstring>
+#include <iostream>
 
 Reciever::Reciever(const char* remote_address, const int local_port, const int remote_port) 
     : size_(0), pipe_(remote_address, local_port, remote_port), bufferLen_(0)
@@ -76,10 +77,41 @@ int Reciever::saveDataPayload() {
     return bufferLen_-offset;
 }
 
-Pipe& Reciever::pipe() {
-    return pipe_;
-}
-    
 std::ofstream& Reciever::fstream() {
     return fstream_;
+}
+
+void Reciever::send(std::string message) {
+    size_t sendLen; // bytes sent
+    long responseLen; // bytes received
+    char response[BUFFERS_LEN]; // response buffer
+    pipe_.incrementPacketId();
+    // initial send
+    std::cout << "receiver: send: message - " << message << std::endl;
+    sendLen = pipe_.sendBytesCRC(message);
+    std::cout << "receiver: send: waiting " << message << std::endl;
+    responseLen = pipe_.recvBytesCRC(response); 
+
+    // in case of any data which havent received ack yet
+    while (strcmp(response, (getLabel(HeaderType::Ack))) != 0 && strcmp(response, (getLabel(HeaderType::Error))) != 0) {
+        std::cout << "receiver: send: packet - cleanup " << std::endl;
+        sendLen = pipe_.sendBytesCRC(getLabel(HeaderType::Ack));
+        responseLen = pipe_.recvBytesCRC(response); 
+        sendLen = pipe_.sendBytesCRC(message);
+        responseLen = pipe_.recvBytesCRC(response); 
+    }
+
+    while (strcmp(response, (getLabel(HeaderType::Ack))) != 0) {
+        std::cout << "receiver: send: packet not ack" << std::endl;
+
+        sendLen = pipe_.sendBytesCRC(message);
+        responseLen = pipe_.recvBytesCRC(response); 
+
+        while(responseLen < 0) { // resend
+            sendLen = pipe_.sendBytesCRC(message);
+            responseLen = pipe_.recvBytesCRC(response); 
+        }
+    } 
+
+    // return sendLen;
 }

@@ -30,9 +30,7 @@ public:
     int getPayloadInt();
     // Get incoming payload (works only for header data)
     int saveDataPayload();
-    
-    // get reference to the pipe
-    Pipe& pipe();
     // get fstream
     std::ofstream& fstream();
+    void send(std::string message);
 };

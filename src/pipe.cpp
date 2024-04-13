@@ -55,7 +55,7 @@ long Pipe::sendBytesCRC(const char *bytes, int len) {
     memcpy(newBytes+4, &packetId_, 4);
     memcpy(newBytes+8, bytes, len);
 
-    uint32_t crc = CRC::Calculate(bytes+4, len+4, CRC::CRC_32());
+    uint32_t crc = CRC::Calculate(newBytes+4, len+4, CRC::CRC_32());
     memcpy(newBytes, &crc, 4);
     return sendBytes(newBytes, len+8);
 }
@@ -71,7 +71,7 @@ long Pipe::recvBytes(char* buffer) {
 
     long size = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);
 
-    std::cout << size << std::endl;
+    std::cout << "pipe: recvBytes: received size: " << size << std::endl;
     if (size != SOCKET_ERR)
         memcpy(buffer, buff, size);
     return size;
@@ -79,14 +79,22 @@ long Pipe::recvBytes(char* buffer) {
 
 // private
 long Pipe::recvBytesCRC(char* buffer) {
-    long size = recvBytes(buffer);
-    if (size == SOCKET_ERR)
+    long len = recvBytes(buffer);
+    if (len == SOCKET_ERR)
         return SOCKET_ERR;
 
     // check crc
     uint32_t crc;
     memcpy(&crc, buffer, 4);
-    if (crc != CRC::Calculate(buffer+4, size-4, CRC::CRC_32()))
+    // std::cout << "pipe: recvBytesCRC: CRC: " << crc << std::endl;
+    // std::cout << "pipe: recvBytesCRC: CRClen: " << len-4 << std::endl;
+    // std::cout << "pipe: recvBytesCRC: Calculated CRC: " << CRC::Calculate(buffer+4, len-4, CRC::CRC_32()) << std::endl;
+    // std::cout << "pipe: recvBytesCRC: buffer:";
+    // for (int i = 4; i < len; i++) {
+    //     printf("%x", buffer[i]);
+    // }
+    // std::cout << std::endl;
+    if (crc != CRC::Calculate(buffer+4, len-4, CRC::CRC_32()))
         return CRC_ERR;
     
     // check recvId
@@ -98,9 +106,9 @@ long Pipe::recvBytesCRC(char* buffer) {
     if (packetId > packetId_)
         packetId_ = packetId;
    
-    size = size-8;
-    memcpy(buffer, buffer+8, size);
-    return size;
+    len = len-8;
+    memcpy(buffer, buffer+8, len);
+    return len;
 }
 
 long Pipe::send(const std::string& message) {
@@ -112,6 +120,7 @@ long Pipe::send(const char* bytes, int len) {
     long responseLen; // bytes received
     char response[BUFFERS_LEN]; // response buffer
     packetId_++;
+    std::cout << "pipe: send " << packetId_ << ", data: " << bytes << std::endl;
     do {
         // initial send
         sendLen = sendBytesCRC(bytes, len);
@@ -121,6 +130,7 @@ long Pipe::send(const char* bytes, int len) {
             responseLen = recvBytesCRC(response); 
         }
     } while(strcmp(response, (getLabel(HeaderType::Ack))) != 0);
+    std::cout << "pipe: send: ack received, " << packetId_ << std::endl;
     set_timeout(); // set timout after first successful send (also sets for each following :))
 
     return sendLen;
@@ -133,6 +143,8 @@ long Pipe::recv(char* buffer) {
         len = recvBytesCRC(buffer);
         if (len == CRC_ERR) // not matching crc
             sendBytesCRC(getLabel(HeaderType::Error)); // send error
+        std::cout << "pipe: recv: PacketId: " << packetId_ << std::endl;
+        std::cout << "pipe: recv: Error(len): " << len << std::endl;
     } while(len < 0);
 
     // ack

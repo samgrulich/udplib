@@ -17,10 +17,6 @@ private:
 private:
     // sends bytes array to the remote
     long sendBytes(const char* bytes, int len);
-    // sends bytes array to the remote
-    long sendBytesCRC(const char* bytes, int len);
-    // sends bytes array to the remote
-    long sendBytesCRC(const std::string& message);
     /** Recevies the incoming byte array
      *  and writes it to the buffer 
      *  (!!the buffer must be initialized at or greater than BUFFERS_LEN size)
@@ -28,13 +24,6 @@ private:
      *  @return bytes received
      */
     long recvBytes(char* buffer);
-    /** Recevies the incoming byte array
-     *  and writes it to the buffer 
-     *  (!!the buffer must be initialized at or greater than BUFFERS_LEN size)
-     *  @param buffer(out) buffer for writing of incoming byte array (!must be initialized)
-     *  @return bytes received or -1 socketerr, -2 iderr, -3 crcerr
-     */
-    long recvBytesCRC(char* buffer);
 public:
     /** create new pipe
      *  @param remote_address the ipv4 address of remote host
@@ -43,6 +32,17 @@ public:
      */ 
     Pipe(const char* remote_address, const int local_port, const int remote_port);
     ~Pipe();
+    // sends bytes array to the remote
+    long sendBytesCRC(const char* bytes, int len);
+    // sends bytes array to the remote
+    long sendBytesCRC(const std::string& message);
+    /** Recevies the incoming byte array
+     *  and writes it to the buffer 
+     *  (!!the buffer must be initialized at or greater than BUFFERS_LEN size)
+     *  @param buffer(out) buffer for writing of incoming byte array (!must be initialized)
+     *  @return bytes received or -1 socketerr, -2 iderr, -3 crcerr
+     */
+    long recvBytesCRC(char* buffer);
     // sets socket timeout to 1s
     void set_timeout();
     // sends string to the remote

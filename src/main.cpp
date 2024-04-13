@@ -94,13 +94,13 @@ int main(int argc, char* argv[]) {
         std::cout << "Waiting for hash" << std::endl;
         receiver.recv(); // hash
         if(!receiver.matchHashes()) {
-            receiver.pipe().send(getLabel(HeaderType::FileError));
+            receiver.send(getLabel(HeaderType::FileError));
             std::cout << "File recieve failed, restarting" << std::endl;
         }
         std::cout << "After hash match" << std::endl;
     } while(!receiver.matchHashes()); // restart recv file
     std::cout << "Sending fileack" << std::endl;
-    receiver.pipe().send(getLabel(HeaderType::FileAck));
+    receiver.send(getLabel(HeaderType::FileAck));
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER
     return 0;
