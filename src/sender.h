@@ -31,6 +31,5 @@ public:
     size_t size();
     // has the program reached end of file
     bool eof();
-    // get reference to the pipe
-    Pipe& pipe();
+    void recv(char* buffer);
 };

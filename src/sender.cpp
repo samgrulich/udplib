@@ -74,6 +74,6 @@ bool Sender::eof() {
     return fstream_.eof();
 }
 
-Pipe& Sender::pipe() {
-    return pipe_;
+void Sender::recv(char* buffer) {
+    pipe_.recv(buffer);
 }

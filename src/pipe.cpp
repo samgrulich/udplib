@@ -57,6 +57,13 @@ long Pipe::sendBytesCRC(const char *bytes, int len) {
 
     uint32_t crc = CRC::Calculate(newBytes+4, len+4, CRC::CRC_32());
     memcpy(newBytes, &crc, 4);
+    // std::cout << "pipe: sendBytesCRC: crc: " << crc << std::endl;
+    // std::cout << "pipe: sendBytesCRC: crclen: " << len+4 << std::endl;
+    // std::cout << "pipe: sendBytesCRC: buffer: ";
+    // for (int i = 4; i < len+4; i++) {
+    //     printf("%x", bytes[i]);
+    // }
+    // std::cout << std::endl;
     return sendBytes(newBytes, len+8);
 }
 
@@ -125,7 +132,9 @@ long Pipe::send(const char* bytes, int len) {
         // initial send
         sendLen = sendBytesCRC(bytes, len);
         responseLen = recvBytesCRC(response); 
+        std::cout << "pipe: send: response: " << response << std::endl;
         while(responseLen < 0) { // resend
+            std::cout << "pipe: send: error - resending errcode: " << responseLen << std::endl;
             sendLen = sendBytesCRC(bytes, len);
             responseLen = recvBytesCRC(response); 
         }
