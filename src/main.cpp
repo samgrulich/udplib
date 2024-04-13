@@ -12,15 +12,13 @@
 // #define SENDER
 // #define RECEIVER
 
-// #define TARGET_IP   "127.0.0.1"
+#define TARGET_IP   "127.0.0.1"
 // #define TARGET_IP   "147.32.219.23"
-#define TARGET_IP   "10.0.0.7"
+// #define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
-// #define TARGET_PORT 4000
-// #define LOCAL_PORT 5001
-#define LOCAL_PORT 4001 
-#define TARGET_PORT 5000 
+#define TARGET_PORT 4000
+#define LOCAL_PORT 5001
 #endif // SENDER
 
 #ifdef RECEIVER
@@ -52,7 +50,6 @@ int main(int argc, char* argv[]) {
     sender.send(HeaderType::Size, sender.size());
     // send file
     char msg[BUFFERS_LEN];
-    Pipe& pipe = sender.pipe();
     std::cout << "Data" << std::endl;
     do {
         sender.send(HeaderType::Start);
@@ -64,7 +61,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Hash" << std::endl;
         sender.sendHash();
         std::cout << "Waiting for fileack" << std::endl;
-        pipe.recv(msg); // will break if there are still coming previous packet
+        sender.recv(msg); // will break if there are still coming previous packet
     } while (strcmp(msg, getLabel(HeaderType::FileAck)) != 0);
     std::cout << "File sent!" << std::endl;
 #endif // SENDER
