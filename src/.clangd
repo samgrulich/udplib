@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [-DLINUX, "-I../include"]
+  Add: [-DLINUX, -DDEBUG, "-I../include"]

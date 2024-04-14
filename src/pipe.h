@@ -42,7 +42,7 @@ public:
      *  @param buffer(out) buffer for writing of incoming byte array (!must be initialized)
      *  @return bytes received or -1 socketerr, -2 iderr, -3 crcerr
      */
-    long recvBytesCRC(char* buffer);
+    long recvBytesCRC(char* buffer, int32_t& packetId);
     // sets socket timeout to 1s
     void set_timeout();
     // sends string to the remote
