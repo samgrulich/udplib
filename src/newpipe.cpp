@@ -52,9 +52,7 @@ long NewPipe::sendBytes(const unsigned char* bytes, int len, int32_t packetId) {
     uint32_t crc = CRC::Calculate(newBytes+4, len+4, CRC::CRC_32());
     memcpy(newBytes, &crc, 4);
     long res;
-    do {
-        res = sendto(socket_, newBytes, len+8, 0, (struct sockaddr*)&dest_, sizeof(dest_));
-    } while (res == TIMEOUT);
+    res = sendto(socket_, newBytes, len+8, 0, (struct sockaddr*)&dest_, sizeof(dest_));
     delete[] newBytes;
     return res;
 }
@@ -62,9 +60,11 @@ long NewPipe::sendBytes(const unsigned char* bytes, int len, int32_t packetId) {
 long NewPipe::recvBytes(unsigned char* buffer, int32_t& packetId) {
     char buff[BUFFERS_LEN];
     long len;
-    do {
-        len = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);
-    } while(len == TIMEOUT);
+    len = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);
+    std::cout << "recvBytes: len: " << len << std::endl;
+    if (len == TIMEOUT) {
+        return TIMEOUT;
+    }
     if (len < 8) {
         return INVALID_PACKET;
     }
@@ -91,8 +91,11 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 
     packet_++;
     do {
-        reqLen = sendBytes(bytes, len, packet_);
-        long resLen = recvBytes(res, resId);
+        long resLen;
+        do {
+            reqLen = sendBytes(bytes, len, packet_);
+            resLen = recvBytes(res, resId);
+        } while(resLen == TIMEOUT || reqLen == SOCKET_ERR);
         if (resLen == INVALID_CRC || resLen == INVALID_PACKET) {
             continue;
         }
@@ -112,8 +115,7 @@ long NewPipe::send(const unsigned char* bytes, int len) {
                 incoming_++;
             }
         } 
-    } while (res[0] != Ack || resId < ack_+1);
-    ack_++;
+    } while (res[0] != Ack || resId < packet_);
 
     // req sent and ack received
     return reqLen;
@@ -122,17 +124,28 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 long NewPipe::recv(unsigned char* buffer) {
     int32_t packetId;
     long reqLen; 
-    ack_++;
+    std::cout << "recv: ack: " << ack_ << std::endl;
     do {
         reqLen = recvBytes(buffer, packetId);
-    } while (reqLen == INVALID_CRC || reqLen == INVALID_PACKET);
+        if (reqLen < 0) {
+            continue;
+        } else if (packetId < ack_+1) {
+            sendHeader(Ack, packetId);
+        } else if (packetId > ack_+1) {
+            toRecv_[packetId] = Bytes(buffer, reqLen);
+            sendHeader(MissingPacket, ack_+1);
+        } // else  packetId == ack+1
+    } while (reqLen == INVALID_CRC || reqLen == INVALID_PACKET || reqLen == TIMEOUT);
+    std::cout << reqLen << ", " << (reqLen == TIMEOUT) << std::endl;
 
+    ack_++;
     sendHeader(Ack, ack_);
 
     toRecv_[packetId] = Bytes(buffer, reqLen);
     if (packetId == incoming_+1) {
         incoming_++;
     }
+    std::cout << "recv: incoming: " << incoming_ << std::endl;
     return reqLen;
 }
 
@@ -167,6 +180,7 @@ long NewPipe::next(unsigned char* buffer) {
         return -1;
     }
     loaded_++;
+    std::cout << "next: loaded: " << loaded_ << std::endl;
     long len = toRecv_[loaded_].len;
     memcpy(buffer, toRecv_[loaded_].bytes, len);
     // toRecv_.erase(loaded_);
