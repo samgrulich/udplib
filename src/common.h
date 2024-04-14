@@ -8,6 +8,10 @@ struct Bytes {
     unsigned char* bytes;
     int len;
 
+    Bytes() {
+        bytes = new unsigned char[BUFFERS_LEN];
+        len = 0;
+    }
     Bytes(unsigned char* bytes, int len) {
         this->bytes = new unsigned char[len];
         this->len = len;
