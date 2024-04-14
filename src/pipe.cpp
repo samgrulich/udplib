@@ -124,8 +124,10 @@ long Pipe::send(const char* bytes, int len) {
         std::cout << "pipe: send: response: " << response << std::endl;
         while(responseLen < 0 || ackId != packetId_) { // resend
 #ifdef DEBUG
-            if (ackId > packetId_)
+            if (ackId > packetId_) {
                 std::cerr << "pipe: send: error - ackId is greater than packetId" << std::endl;
+                goto fileack_error; // error with the fileack coming before ack
+            }
             else if (ackId-1 != packetId_) {
                 std::cerr << "pipe: send: error - ackId is not equal to packetId-1 ";
                 printf("ackId(%d) packetId(%d)\n", ackId, packetId_);
@@ -133,6 +135,7 @@ long Pipe::send(const char* bytes, int len) {
             std::cout << "pipe: send: error - resending errcode: " << responseLen << ", packetId is eq ackId " << (ackId == packetId_) << std::endl;
 #endif
             sendLen = sendBytesCRC(bytes, len);
+fileack_error:
             responseLen = recvBytesCRC(response, ackId); 
         }
     } while(strcmp(response, (getLabel(HeaderType::Ack))) != 0);
