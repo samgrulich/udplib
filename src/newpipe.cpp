@@ -124,21 +124,24 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 long NewPipe::recv(unsigned char* buffer) {
     int32_t packetId;
     long reqLen; 
-    std::cout << "recv: ack: " << ack_ << std::endl;
     do {
         reqLen = recvBytes(buffer, packetId);
         if (reqLen < 0) {
+            std::cout << "recv: invalid packet: " << reqLen << std::endl;
             continue;
         } else if (packetId < ack_+1) {
+            std::cout << "recv: repeated packet: " << packetId << std::endl;
             sendHeader(Ack, packetId);
         } else if (packetId > ack_+1) {
             toRecv_[packetId] = Bytes(buffer, reqLen);
+            std::cout << "recv: missing packet: " << packetId << std::endl;
             sendHeader(MissingPacket, ack_+1);
         } // else  packetId == ack+1
-    } while (reqLen == INVALID_CRC || reqLen == INVALID_PACKET || reqLen == TIMEOUT);
+    } while (packetId != ack_+1 || reqLen == INVALID_CRC || reqLen == INVALID_PACKET || reqLen == TIMEOUT);
     std::cout << reqLen << ", " << (reqLen == TIMEOUT) << std::endl;
 
     ack_++;
+    std::cout << "recv: ack: " << ack_ << std::endl;
     sendHeader(Ack, ack_);
 
     toRecv_[packetId] = Bytes(buffer, reqLen);
