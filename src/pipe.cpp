@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <ios>
 #include <iostream>
 
 #define SOCKET_ERR -1
@@ -163,6 +162,3 @@ long Pipe::recv(char* buffer) {
     return len;
 }
 
-void Pipe::incrementPacketId() {
-    packetId_++;
-}

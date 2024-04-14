@@ -5,7 +5,7 @@
 #include <sstream>
 
 Sender::Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port) 
-    :name_(name), position_(0), pipe_(remote_address, local_port, remote_port)
+    :name_(name), position_(0), Pipe(remote_address, local_port, remote_port)
 {
     fstream_ = std::ifstream(name, std::ios::binary);
     size_ = std::filesystem::file_size({name});
@@ -14,7 +14,7 @@ Sender::Sender(const char* const name, const char* remote_address, const int loc
 void Sender::send(HeaderType type) {
     if (type != HeaderType::Start && type != HeaderType::Stop)
         return;
-    pipe_.send(getLabel(type));
+    Pipe::send(getLabel(type));
 }
 
 void Sender::send(HeaderType type, int value) { 
@@ -22,7 +22,7 @@ void Sender::send(HeaderType type, int value) {
         return;
     std::stringstream msg;
     msg << getLabel(type) << "=" << value;
-    pipe_.send(msg.str());
+    Pipe::send(msg.str());
 }
 
 void Sender::send(HeaderType type, std::string value) {
@@ -31,14 +31,14 @@ void Sender::send(HeaderType type, std::string value) {
 
     std::stringstream msg;
     msg << getLabel(type) << "=" << value;
-    pipe_.send(msg.str());
+    Pipe::send(msg.str());
 }
 
 void Sender::sendHash() {
     std::stringstream msg; 
     msg << getLabel(HeaderType::Hash) << "=";
     msg << getHash();
-    pipe_.send(msg.str());
+    Pipe::send(msg.str());
 }
 
 void Sender::sendChunk() {
@@ -61,7 +61,7 @@ void Sender::sendChunk() {
     memcpy(bytes+4, &pos, 4);
     memcpy(bytes+8, buff, len);
 
-    pipe_.send(bytes, bytesLen);
+    Pipe::send(bytes, bytesLen);
     position_ = len;
     delete[] bytes;
 }
@@ -75,5 +75,5 @@ bool Sender::eof() {
 }
 
 void Sender::recv(char* buffer) {
-    pipe_.recv(buffer);
+    Pipe::recv(buffer);
 }

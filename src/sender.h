@@ -7,13 +7,12 @@
 #include "message.h"
 #include "pipe.h"
 
-class Sender : public Hasher {
+class Sender : Pipe, Hasher {
 private:
     uint32_t size_;
     uint32_t position_;
     std::string name_;
     std::ifstream fstream_;
-    Pipe pipe_;
 public:
     // create new sender
     Sender(const char* const name, const char* remote_address, const int local_port, const int remote_port);

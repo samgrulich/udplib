@@ -5,12 +5,11 @@
 #include "pipe.h"
 #include <fstream>
 
-class Reciever : Hasher {
+class Reciever : Pipe, Hasher {
 private:
     uint32_t size_;
     std::string name_;
     std::ofstream fstream_;
-    Pipe pipe_;
     char buffer_[BUFFERS_LEN];
     size_t bufferLen_;
 public: 

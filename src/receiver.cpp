@@ -4,7 +4,7 @@
 #include <iostream>
 
 Reciever::Reciever(const char* remote_address, const int local_port, const int remote_port) 
-    : size_(0), pipe_(remote_address, local_port, remote_port), bufferLen_(0)
+    : size_(0), Pipe(remote_address, local_port, remote_port), bufferLen_(0)
 {
     fstream_ = std::ofstream();
 }
@@ -19,8 +19,7 @@ void stripDataHeader(char* msg) {
 }
 
 int Reciever::recv() {
-    bufferLen_ = pipe_.recv(buffer_);
-    return bufferLen_;
+    return Pipe::recv(buffer_);
 }
 
 bool Reciever::matchHashes() {
@@ -85,33 +84,33 @@ void Reciever::send(std::string message) {
     size_t sendLen; // bytes sent
     long responseLen; // bytes received
     char response[BUFFERS_LEN]; // response buffer
-    pipe_.incrementPacketId();
+    int32_t ackId = 0;
+    Pipe::packetId_++;
     // initial send
     std::cout << "receiver: send: message - " << message << std::endl;
-    sendLen = pipe_.sendBytesCRC(message);
+    sendLen = Pipe::sendBytesCRC(message);
     std::cout << "receiver: send: waiting " << message << std::endl;
-    responseLen = pipe_.recvBytesCRC(response); 
+    responseLen = Pipe::recvBytesCRC(response, ackId); 
 
     // in case of any data which havent received ack yet
     while (strcmp(response, (getLabel(HeaderType::Ack))) != 0 && strcmp(response, (getLabel(HeaderType::Error))) != 0) {
         std::cout << "receiver: send: packet - cleanup " << std::endl;
-        sendLen = pipe_.sendBytesCRC(getLabel(HeaderType::Ack));
-        responseLen = pipe_.recvBytesCRC(response); 
-        sendLen = pipe_.sendBytesCRC(message);
-        responseLen = pipe_.recvBytesCRC(response); 
+        sendLen = Pipe::sendBytesCRC(getLabel(HeaderType::Ack));
+        responseLen = Pipe::recvBytesCRC(response, ackId); 
+        sendLen = Pipe::sendBytesCRC(message);
+        responseLen = Pipe::recvBytesCRC(response, ackId); 
     }
+    // todo: update packetId?
 
     while (strcmp(response, (getLabel(HeaderType::Ack))) != 0) {
         std::cout << "receiver: send: packet not ack" << std::endl;
 
-        sendLen = pipe_.sendBytesCRC(message);
-        responseLen = pipe_.recvBytesCRC(response); 
+        sendLen = Pipe::sendBytesCRC(message);
+        responseLen = Pipe::recvBytesCRC(response, ackId); 
 
         while(responseLen < 0) { // resend
-            sendLen = pipe_.sendBytesCRC(message);
-            responseLen = pipe_.recvBytesCRC(response); 
+            sendLen = Pipe::sendBytesCRC(message);
+            responseLen = Pipe::recvBytesCRC(response, ackId); 
         }
     } 
-
-    // return sendLen;
 }

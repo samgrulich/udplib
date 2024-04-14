@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "hash.h"
 #include "socket.h"
 
 
@@ -13,6 +14,7 @@ private:
     struct sockaddr_in local_;
     struct sockaddr_in dest_;
     struct sockaddr_in from_;
+protected:
     int32_t packetId_ = -1;
 private:
     // sends bytes array to the remote
@@ -24,14 +26,7 @@ private:
      *  @return bytes received
      */
     long recvBytes(char* buffer);
-public:
-    /** create new pipe
-     *  @param remote_address the ipv4 address of remote host
-     *  @param local_port the port at which this program listens
-     *  @param remote_port the port at which the host listens
-     */ 
-    Pipe(const char* remote_address, const int local_port, const int remote_port);
-    ~Pipe();
+protected:
     // sends bytes array to the remote
     long sendBytesCRC(const char* bytes, int len);
     // sends bytes array to the remote
@@ -56,5 +51,12 @@ public:
      * @return bytes received (without null char)
      */
     long recv(char* buffer);
-    void incrementPacketId();
+public:
+    /** create new pipe
+     *  @param remote_address the ipv4 address of remote host
+     *  @param local_port the port at which this program listens
+     *  @param remote_port the port at which the host listens
+     */ 
+    Pipe(const char* remote_address, const int local_port, const int remote_port);
+    ~Pipe();
 };
