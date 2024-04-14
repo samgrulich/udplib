@@ -154,10 +154,13 @@ long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len) {
 
 long NewPipe::submit(const unsigned char* bytes, int len) {
     toSend_[submited_++] = Bytes(bytes, len);
+    long res = send(bytes, len);
+    return res;
     return len;
 }
 
 long NewPipe::next(unsigned char* buffer) {
+    long res = recv(buffer);
     if (toRecv_.find(loaded_+1) == toRecv_.end()) {
         return -1;
     }
@@ -165,6 +168,7 @@ long NewPipe::next(unsigned char* buffer) {
     long len = toRecv_[loaded_].len;
     memcpy(buffer, toRecv_[loaded_].bytes, len);
     toRecv_.erase(loaded_);
+    return res;
     return len;
 }
 
