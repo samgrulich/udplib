@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Sending file: " << filePath << std::endl;
     std::cout << "Name" << std::endl;
-    pipe.submit(HeaderType::Name, (unsigned char*)filePath, strlen(filePath));
+    pipe.submit(HeaderType::Name, (unsigned char*)filePath, strlen(filePath)+1);
     std::cout << "Size" << std::endl;
     pipe.submit(HeaderType::Size, (unsigned char*)&fileSize, sizeof(fileSize));
     // send file
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "Waiting for hash" << std::endl;
         len = pipe.next(buffer);  // hash
-        hashesMatch = hasher.getHash() == std::string((char*)(buffer+1), len-1);
+        hashesMatch = strcmp(hasher.getHash().c_str(), (char*)(buffer+1)) == 0;
         if(!hashesMatch) {
             pipe.submitHeader(HeaderType::FileError);
             std::cout << "File recieve failed, restarting" << std::endl;
