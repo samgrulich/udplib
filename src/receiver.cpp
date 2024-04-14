@@ -19,7 +19,10 @@ void stripDataHeader(char* msg) {
 }
 
 int Reciever::recv() {
-    return Pipe::recv(buffer_);
+    static int recvCount = 0;
+    std::cout << "receiver: recv: waiting for " << recvCount++ << " time" << std::endl;
+    bufferLen_ = Pipe::recv(buffer_);
+    return bufferLen_;
 }
 
 bool Reciever::matchHashes() {
@@ -57,6 +60,7 @@ int Reciever::getPayloadInt() {
     if (!hasHeader(HeaderType::Size)) 
         return 0;
     int start = getSplitPos(HeaderType::Size);
+    std::cout << bufferLen_ << start << std::endl;
     char *sizeBytes = new char [bufferLen_-start];
     memcpy(sizeBytes, buffer_+start, bufferLen_-start-1);
     size_ = atoi(sizeBytes);
@@ -87,10 +91,13 @@ void Reciever::send(std::string message) {
     int32_t ackId = 0;
     Pipe::packetId_++;
     // initial send
-    std::cout << "receiver: send: message - " << message << std::endl;
-    sendLen = Pipe::sendBytesCRC(message);
-    std::cout << "receiver: send: waiting " << message << std::endl;
-    responseLen = Pipe::recvBytesCRC(response, ackId); 
+    set_timeout();
+    do {
+        std::cout << "receiver: send: message - " << message << std::endl;
+        sendLen = Pipe::sendBytesCRC(message);
+        std::cout << "receiver: send: waiting " << message << std::endl;
+        responseLen = Pipe::recvBytesCRC(response, ackId); 
+    } while (responseLen < 0);
 
     // in case of any data which havent received ack yet
     while (strcmp(response, (getLabel(HeaderType::Ack))) != 0 && strcmp(response, (getLabel(HeaderType::Error))) != 0) {
@@ -100,6 +107,7 @@ void Reciever::send(std::string message) {
         sendLen = Pipe::sendBytesCRC(message);
         responseLen = Pipe::recvBytesCRC(response, ackId); 
     }
+
     // todo: update packetId?
 
     while (strcmp(response, (getLabel(HeaderType::Ack))) != 0) {
