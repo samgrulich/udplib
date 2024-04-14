@@ -95,10 +95,7 @@ long NewPipe::send(const unsigned char* bytes, int len) {
         do {
             reqLen = sendBytes(bytes, len, packet_);
             resLen = recvBytes(res, resId);
-        } while(resLen == TIMEOUT || reqLen == SOCKET_ERR);
-        if (resLen == INVALID_CRC || resLen == INVALID_PACKET) {
-            continue;
-        }
+        } while(resLen < 0);
         if (res[0] == MissingAck) {
             // resend ack
             // todo: add check if it is "future" packet request resend of the previous
@@ -110,10 +107,7 @@ long NewPipe::send(const unsigned char* bytes, int len) {
         } else if (res[0] != Ack && res[0] != Error) {
             if (resId < 0) 
                 continue;
-            toRecv_[resId] = Bytes(res, resLen);
-            if (incoming_+1 == resId) {
-                incoming_++;
-            }
+            sendHeader(MissingAck, resId);
         } 
     } while (res[0] != Ack || resId < packet_);
 
