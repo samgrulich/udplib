@@ -73,6 +73,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Waiting for fileack" << std::endl;
         pipe.next(msg);
     } while (msg[0] != FileAck);
+    pipe.submitHeader(HeaderType::End);
     std::cout << "File sent!" << std::endl;
 #endif // SENDER
 
@@ -116,6 +117,7 @@ int main(int argc, char* argv[]) {
     } while(!hashesMatch); // restart recv file
     std::cout << "Sending fileack" << std::endl;
     pipe.submitHeader(HeaderType::FileAck);
+    pipe.next(buffer); // end
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER
     return 0;

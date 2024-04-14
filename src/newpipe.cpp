@@ -97,14 +97,17 @@ long NewPipe::send(const unsigned char* bytes, int len) {
             resLen = recvBytes(res, resId);
         } while(resLen < 0);
         if (res[0] == MissingAck) {
+            std::cout << "send: missing ack: " << resId << std::endl;
             // resend ack
             // todo: add check if it is "future" packet request resend of the previous
             sendHeader(Ack, resId);
         } else if (res[0] == MissingPacket) {
             // resend packet
+            std::cout << "send: missing packet: " << resId << std::endl;
             Bytes toSend = toSend_[resId];
             sendBytes(toSend.bytes, toSend.len, resId);
         } else if (res[0] != Ack && res[0] != Error) {
+            std::cout << "send: invalid response: " << res[0] << std::endl;
             if (resId < 0) 
                 continue;
             sendHeader(MissingAck, resId);
