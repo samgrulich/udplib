@@ -5,24 +5,17 @@
 #include <cstring>
 
 struct Bytes {
-    unsigned char* bytes;
-    int len;
+    unsigned char bytes[BUFFERS_LEN];
+    int len = 0;
 
-    Bytes() {
-        bytes = new unsigned char[BUFFERS_LEN];
-        len = 0;
-    }
+    Bytes() { }
     Bytes(unsigned char* bytes, int len) {
-        this->bytes = new unsigned char[len];
         this->len = len;
         memcpy(this->bytes, bytes, len);
     }
     Bytes(const unsigned char* bytes, int len) {
-        this->bytes = new unsigned char[len];
         this->len = len;
         memcpy(this->bytes, bytes, len);
     }
-    ~Bytes() {
-        delete[] bytes;
-    }
+    ~Bytes() { }
 };

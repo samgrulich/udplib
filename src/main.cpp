@@ -83,7 +83,9 @@ int main(int argc, char* argv[]) {
     unsigned char buffer[BUFFERS_LEN];
     size_t len = 0;
     len = pipe.next(buffer);
-    std::string name = std::string((char*)buffer, len);
+    std::cout << (char*)(buffer+1) << std::endl;
+    std::cout << (int)len << std::endl;
+    std::string name = std::string((char*)buffer+1, len-1);
     std::ofstream file(name, std::ios::binary);
     std::cout << "Waiting for size" << std::endl;
     len = pipe.next(buffer);
@@ -100,6 +102,8 @@ int main(int argc, char* argv[]) {
             file.write((char*)(buffer+1), len-1);
             std::cout << "Waiting for next data" << std::endl;
             len = pipe.next(buffer);  // data
+            printf("Data[0]: %d", buffer[0]);
+            std::cout << ", Stop " << HeaderType::Stop << ", eq: " << HeaderType::Stop << std::endl;
         }
         std::cout << "Waiting for hash" << std::endl;
         len = pipe.next(buffer);  // hash

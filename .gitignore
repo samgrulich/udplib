@@ -6,6 +6,7 @@
 
 # Linux builds
 build
+src/.clangd
 
 # Visual studio files
 x64

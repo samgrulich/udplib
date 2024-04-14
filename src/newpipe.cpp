@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 
 #include "CRC.h"
 #include "message.h"
@@ -128,6 +129,7 @@ long NewPipe::recv(unsigned char* buffer) {
 
     sendHeader(Ack, ack_);
 
+    toRecv_[packetId] = Bytes(buffer, reqLen);
     if (packetId == incoming_+1) {
         incoming_++;
     }
@@ -167,7 +169,7 @@ long NewPipe::next(unsigned char* buffer) {
     loaded_++;
     long len = toRecv_[loaded_].len;
     memcpy(buffer, toRecv_[loaded_].bytes, len);
-    toRecv_.erase(loaded_);
+    // toRecv_.erase(loaded_);
     return res;
     return len;
 }
