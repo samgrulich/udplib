@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "bytes.h"
 #include "CRC.h"
 #include "message.h"
 
@@ -133,6 +132,24 @@ long NewPipe::recv(unsigned char* buffer) {
         incoming_++;
     }
     return reqLen;
+}
+
+long NewPipe::submitHeader(const unsigned char header) {
+    return submit(&header, 1);
+}
+
+long NewPipe::submit(HeaderType header, unsigned char* bytes, int len) {
+    return submit(header, (const unsigned char*)bytes, len);
+}
+
+
+long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len) {
+    unsigned char* newBytes = new unsigned char[len+1];
+    newBytes[0] = header;
+    memcpy(newBytes+1, bytes, len);
+    long res = submit(newBytes, len+1);
+    delete[] newBytes;
+    return res;
 }
 
 long NewPipe::submit(const unsigned char* bytes, int len) {

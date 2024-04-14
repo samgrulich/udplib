@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bytes.h"
+#include "message.h"
 #include "socket.h"
 #include "common.h"
 #include <map>
@@ -36,6 +36,9 @@ private:
 public:
     NewPipe(const char* remote_address, const int local_port, const int remote_port);
     ~NewPipe();
+    long submitHeader(const unsigned char header);
+    long submit(HeaderType header, unsigned char* bytes, int len);
+    long submit(HeaderType header, const unsigned char* bytes, int len);
     // submit packet for sending
     long submit(const unsigned char* bytes, int len);
     // load packet from the buffer if at the end return -1
