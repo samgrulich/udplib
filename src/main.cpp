@@ -2,7 +2,6 @@
 #include <fstream>
 #include <stdio.h>
 #include <iostream>
-#include <thread>
 
 #include "common.h"
 #include "message.h"
@@ -10,7 +9,7 @@
 #include "sender.h"
 
 // #define SENDER
-// #define RECEIVER
+#define RECEIVER
 
 // #define TARGET_IP   "127.0.0.1"
 // #define TARGET_IP   "147.32.219.23"

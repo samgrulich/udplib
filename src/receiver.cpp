@@ -75,6 +75,7 @@ int Reciever::saveDataPayload() {
     char buff[BUFFERS_LEN];
     int offset = 4+4; // to strip the header and position
     memcpy(buff, buffer_+offset, bufferLen_-offset);
+    std::cout << "receiver: saveDataPayload: " << bufferLen_ << std::endl;
     updateHash(buff, bufferLen_-offset-1);
     fstream_.write(buff, bufferLen_-offset-1);
     return bufferLen_-offset;
