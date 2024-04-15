@@ -52,7 +52,7 @@ long NewPipe::sendBytes(const unsigned char* bytes, int len, int32_t packetId) {
     uint32_t crc = CRC::Calculate(newBytes+4, len+4, CRC::CRC_32());
     memcpy(newBytes, &crc, 4);
     long res;
-    res = sendto(socket_, newBytes, len+8, 0, (struct sockaddr*)&dest_, sizeof(dest_));
+    res = sendto(socket_, (const char*)newBytes, len+8, 0, (struct sockaddr*)&dest_, sizeof(dest_));
     delete[] newBytes;
     return res;
 }

@@ -128,13 +128,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\libs\hashes\md5.cpp" />
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="message.cpp" />
-    <ClCompile Include="pipe.cpp" />
-    <ClCompile Include="receiver.cpp" />
-    <ClCompile Include="sender.cpp" />
+    <ClCompile Include="md5.cpp" />
+    <ClCompile Include="newpipe.cpp" />
     <ClCompile Include="windowsSockets.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -144,9 +141,7 @@
     <ClInclude Include="hash.h" />
     <ClInclude Include="linuxSockets.h" />
     <ClInclude Include="message.h" />
-    <ClInclude Include="pipe.h" />
-    <ClInclude Include="receiver.h" />
-    <ClInclude Include="sender.h" />
+    <ClInclude Include="newpipe.h" />
     <ClInclude Include="socket.h" />
     <ClInclude Include="windowsSockets.h" />
   </ItemGroup>
