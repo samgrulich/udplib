@@ -37,7 +37,9 @@ NewPipe::NewPipe(const char* remote_address, const int local_port, const int rem
     struct timeval timeout_ = {
         .tv_sec = 1,
     };
-    setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_, sizeof(timeout_));
+    if (setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_, sizeof(timeout_) == SOCKET_ERROR)) {
+        printf("Setsockopt failed\n");
+    }
 }
 
 NewPipe::~NewPipe() {
@@ -58,8 +60,25 @@ long NewPipe::sendBytes(const unsigned char* bytes, int len, int32_t packetId) {
 }
 
 long NewPipe::recvBytes(unsigned char* buffer, int32_t& packetId) {
+    struct timeval timeout_ = {
+        .tv_sec = 1,
+    };
+
+    fd_set readSet;
+    FD_ZERO(&readSet);
+    FD_SET(socket_, &readSet);
+    int result = select(0, &readSet, nullptr, nullptr, &timeout_);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "select failed:" << WSAGetLastError() << std::endl;
+    }
+    else if (result == 0) {
+        return TIMEOUT;
+    }
+
+
     char buff[BUFFERS_LEN];
     long len;
+
     len = recvfrom(socket_, buff, BUFFERS_LEN, 0, (struct sockaddr*)&from_, (socklen_t*)&fromlen_);
     std::cout << "recvBytes: len: " << len << std::endl;
     if (len == TIMEOUT) {
