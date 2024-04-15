@@ -29,11 +29,11 @@ protected:
     std::map<int32_t, Bytes> toRecv_;
 private:
     long sendBytes(const unsigned char* bytes, int len, int32_t packetId);
-    long recvBytes(unsigned char* buffer, int32_t& packetId);
     long send(const unsigned char* bytes, int len);
     long recv(unsigned char* buffer);
-    void sendHeader(const unsigned char header, int32_t packetId);
 public:
+    long recvBytes(unsigned char* buffer, int32_t& packetId);
+    void sendHeader(const unsigned char header, int32_t packetId);
     NewPipe(const char* remote_address, const int local_port, const int remote_port);
     ~NewPipe();
     long submitHeader(const unsigned char header);

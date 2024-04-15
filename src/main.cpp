@@ -10,11 +10,11 @@
 #include "newpipe.h"
 
 // #define SENDER
-#define RECEIVER
+// #define RECEIVER
 
-// #define TARGET_IP   "127.0.0.1"
-#define TARGET_IP   "147.32.217.249"
-//#define TARGET_IP   "10.0.0.7"
+#define TARGET_IP   "127.0.0.1"
+// #define TARGET_IP   "147.32.219.23"
+// #define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
@@ -73,7 +73,14 @@ int main(int argc, char* argv[]) {
         std::cout << "Waiting for fileack" << std::endl;
         pipe.next(msg);
     } while (msg[0] != FileAck);
-    pipe.submitHeader(HeaderType::End);
+    unsigned char buffer[BUFFERS_LEN];
+    int32_t resId;
+
+    for (int i = 0; i < 3; i++) {
+        if (pipe.recvBytes(buffer, resId) >= 0) {
+            pipe.sendHeader(HeaderType::Ack, resId);
+        }
+    }
     std::cout << "File sent!" << std::endl;
 #endif // SENDER
 
@@ -117,7 +124,6 @@ int main(int argc, char* argv[]) {
     } while(!hashesMatch); // restart recv file
     std::cout << "Sending fileack" << std::endl;
     pipe.submitHeader(HeaderType::FileAck);
-    pipe.next(buffer); // end
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER
     return 0;

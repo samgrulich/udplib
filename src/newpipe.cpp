@@ -37,9 +37,12 @@ NewPipe::NewPipe(const char* remote_address, const int local_port, const int rem
     struct timeval timeout_ = {
         .tv_sec = 1,
     };
-    if (setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_, sizeof(timeout_) == SOCKET_ERROR)) {
+    int res = setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_, sizeof(timeout_));
+#ifndef LINUX
+    if (res == SOCKET_ERROR) {
         printf("Setsockopt failed\n");
     }
+#endif
 }
 
 NewPipe::~NewPipe() {
@@ -60,6 +63,7 @@ long NewPipe::sendBytes(const unsigned char* bytes, int len, int32_t packetId) {
 }
 
 long NewPipe::recvBytes(unsigned char* buffer, int32_t& packetId) {
+#ifndef LINUX
     struct timeval timeout_ = {
         .tv_sec = 1,
     };
@@ -74,8 +78,7 @@ long NewPipe::recvBytes(unsigned char* buffer, int32_t& packetId) {
     else if (result == 0) {
         return TIMEOUT;
     }
-
-
+#endif
     char buff[BUFFERS_LEN];
     long len;
 
@@ -127,9 +130,11 @@ long NewPipe::send(const unsigned char* bytes, int len) {
             sendBytes(toSend.bytes, toSend.len, resId);
         } else if (res[0] != Ack && res[0] != Error) {
             std::cout << "send: invalid response: " << res[0] << std::endl;
+            // problem here
             if (resId < 0) 
                 continue;
             sendHeader(MissingAck, resId);
+            resLen = recvBytes(res, resId);
         } 
     } while (res[0] != Ack || resId < packet_);
 
