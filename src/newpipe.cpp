@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "CRC.h"
+#include "common.h"
 #include "message.h"
 
 #define SOCKET_ERR -1
@@ -35,7 +36,8 @@ NewPipe::NewPipe(const char* remote_address, const int local_port, const int rem
     
     // activate the timeout
     struct timeval timeout_ = {
-        .tv_sec = 1,
+        .tv_sec = 0,
+        .tv_usec = 250000
     };
     int res = setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_, sizeof(timeout_));
 #ifndef LINUX
@@ -60,6 +62,10 @@ long NewPipe::sendBytes(const unsigned char* bytes, int len, int32_t packetId) {
     res = sendto(socket_, (const char*)newBytes, len+8, 0, (struct sockaddr*)&dest_, sizeof(dest_));
     delete[] newBytes;
     return res;
+}
+
+long NewPipe::sendBytes(Bytes bytes, int32_t packetId) {
+    return sendBytes(bytes.bytes, bytes.len, packetId);
 }
 
 long NewPipe::recvBytes(unsigned char* buffer, int32_t& packetId) {
@@ -142,6 +148,50 @@ long NewPipe::send(const unsigned char* bytes, int len) {
     return reqLen;
 }
 
+long NewPipe::sendBatch(int start, int stop) {
+    unsigned char res[BUFFERS_LEN];
+    long reqLen;
+    int32_t resId = -1;
+    int startPacket = start, stopPacket = stop;
+
+    packet_ += WINDOW_SIZE;
+    do {
+        long resLen;
+        do {
+            for (int i = startPacket; i < stopPacket; i++) {
+                Bytes msg = toSend_[i];
+                reqLen = sendBytes(msg, start);
+            } 
+            resLen = recvBytes(res, resId);
+        } while (resLen < 0); // loop for resending dropped windows (or acks)
+        if (res[0] == MissingAck) {
+            std::cout << "send: missing ack: " << resId << std::endl;
+            // todo: add check if it is "future" packet request resend of the previous
+            // resend ack
+            sendHeader(Ack, resId);
+        } else if (res[0] == MissingPacket) {
+            // resend packet
+            std::cout << "send: missing packet: " << resId << std::endl;
+            Bytes toSend = toSend_[resId];
+            sendBytes(toSend, resId);
+        } else if (res[0] != Ack && res[0] != Error) {
+            std::cout << "send: invalid response: " << res[0] << std::endl;
+            // problem here
+            if (resId < 0) 
+                continue;
+            sendHeader(MissingAck, resId);
+            resLen = recvBytes(res, resId);
+        } 
+        if (startPacket < resId < stopPacket) {
+            startPacket = resId;
+        }
+        // if resId > stopPacket somethings wrong
+    } while (resId != stopPacket); // exit only if came in ack with the stopPacket
+
+    // req sent and ack received
+    return reqLen;
+}
+
 long NewPipe::recv(unsigned char* buffer) {
     int32_t packetId;
     long reqLen; 
@@ -173,6 +223,39 @@ long NewPipe::recv(unsigned char* buffer) {
     return reqLen;
 }
 
+long NewPipe::recvBatch() {
+    int32_t packetId;
+    long reqLen; 
+    int missingPackets = WINDOW_SIZE;
+
+    do {
+        for (int i = 0; i < missingPackets; i++) {
+            unsigned char buffer[BUFFERS_LEN];
+            reqLen = recvBytes(buffer, packetId);
+            if (reqLen == TIMEOUT) {
+                // send ack of last received packet
+                break;
+            } else if (reqLen == INVALID_CRC) {
+                // drop packet
+                break;
+            } else if (packetId != ack_+5) { // todo: correct this formula to check if the packet is within current window
+                toRecv_[packetId] = Bytes(buffer, reqLen);
+                missingPackets--;
+                ack_++;
+                // imcoming++ ?
+            }
+        }
+        sendHeader(Ack, ack_);
+    } while (missingPackets != 0);
+    std::cout << "recv: len: " << reqLen << ", isTimeout: " << (reqLen == TIMEOUT) << std::endl;
+    std::cout << "recv: ack: " << ack_ << std::endl;
+    if (packetId == incoming_+1) {
+        incoming_++;
+    }
+    std::cout << "recv: incoming: " << incoming_ << std::endl;
+    return reqLen;
+}
+
 long NewPipe::submitHeader(const unsigned char header) {
     return submit(&header, 1);
 }
@@ -192,14 +275,16 @@ long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len) {
 }
 
 long NewPipe::submit(const unsigned char* bytes, int len) {
-    toSend_[submited_++] = Bytes(bytes, len);
-    long res = send(bytes, len);
-    return res;
+    toSend_[submited_] = Bytes(bytes, len);
+    if (submited_ % WINDOW_SIZE && submited_ != 0)
+        sendBatch(submited_ - WINDOW_SIZE, submited_);
+    submited_++;
     return len;
 }
 
 long NewPipe::next(unsigned char* buffer) {
-    long res = recv(buffer);
+    if (loaded_ % WINDOW_SIZE == 0)
+        recvBatch();
     if (toRecv_.find(loaded_+1) == toRecv_.end()) {
         return -1;
     }
@@ -207,8 +292,6 @@ long NewPipe::next(unsigned char* buffer) {
     std::cout << "next: loaded: " << loaded_ << std::endl;
     long len = toRecv_[loaded_].len;
     memcpy(buffer, toRecv_[loaded_].bytes, len);
-    // toRecv_.erase(loaded_);
-    return res;
     return len;
 }
 

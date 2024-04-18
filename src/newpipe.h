@@ -4,6 +4,7 @@
 #include "socket.h"
 #include "common.h"
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 class NewPipe {
@@ -25,12 +26,15 @@ protected:
     int32_t incoming_ = -1;
     // Number of last acknowledgment packet
     int32_t ack_ = -1;
-    std::map<int32_t, Bytes> toSend_;
-    std::map<int32_t, Bytes> toRecv_;
+    std::unordered_map<int32_t, Bytes> toSend_;
+    std::unordered_map<int32_t, Bytes> toRecv_;
 private:
+    long sendBytes(Bytes bytes, int32_t packetId);
     long sendBytes(const unsigned char* bytes, int len, int32_t packetId);
     long send(const unsigned char* bytes, int len);
+    long sendBatch(int start, int stop);
     long recv(unsigned char* buffer);
+    long recvBatch();
 public:
     long recvBytes(unsigned char* buffer, int32_t& packetId);
     void sendHeader(const unsigned char header, int32_t packetId);

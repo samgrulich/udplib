@@ -1,6 +1,7 @@
 #pragma once 
 
 #define BUFFERS_LEN 1024
+#define WINDOW_SIZE 5
 
 #include <cstring>
 
