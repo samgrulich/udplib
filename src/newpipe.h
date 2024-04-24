@@ -46,5 +46,5 @@ public:
     // submit packet for sending
     long submit(const unsigned char* bytes, int len);
     // load packet from the buffer if at the end return -1
-    long next(unsigned char* buffer);
+    long next(unsigned char* buffer, bool blocking=false);
 };

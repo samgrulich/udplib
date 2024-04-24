@@ -21,9 +21,13 @@
 #define LOCAL_PORT 5001
 #endif // SENDER
 
+// #ifdef RECEIVER
+// #define TARGET_PORT 4001 
+// #define LOCAL_PORT 5000 
+// #endif // RECEIVER
 #ifdef RECEIVER
-#define TARGET_PORT 4001 
-#define LOCAL_PORT 5000 
+#define TARGET_PORT 5001 
+#define LOCAL_PORT 4000 
 #endif // RECEIVER
 
 
