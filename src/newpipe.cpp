@@ -180,14 +180,13 @@ long NewPipe::sendBatch(int start, int stop) {
             for (Bytes& packet : toSend) {
                 int packetId = start + i;
                 if (remPackets[packetId]) { // packet has not been received yet, send it
-                    std::cout << "packetCount " << packet.bytes[0] << std::endl;
                     long reqLen = sendBytes(packet, packetId);
                 }
                 i++; 
             }
             resLen = recvBytes(res, resId); 
         } while(resLen == TIMEOUT); // no response received
-        if (res[2] == Ack) { // at least some packets received
+        if (res[0] == Ack) { // at least some packets received
             for (int i = 0; i < windowSize; i++) {
                 int packetId = start + i;
                 if (remPackets[packetId] == false) 
@@ -196,12 +195,12 @@ long NewPipe::sendBatch(int start, int stop) {
                 remPackets[packetId] = res[3+i] == 1 ? false : true; // if res == 1 the packet has been received
                 remainingPacketCount--;
             }
-        } else if (res[2] == MissingAck) {
+        } else if (res[0] == MissingAck) {
             std::cerr << "send: Sending missing ack: " << resId << std::endl;
             // todo: add check if it is "future" packet request resend of the previous
             // resend ack
             sendHeader(Ack, resId);
-        } else if (res[2] == MissingPacket) {
+        } else if (res[0] == MissingPacket) {
             // resend packet
             std::cerr << "send: Resending missing packet: " << resId << std::endl;
             Bytes toSend = toSend_[resId];
@@ -212,7 +211,7 @@ long NewPipe::sendBatch(int start, int stop) {
                 resLen = recvBytes(res, resId); 
                 // todo: check if this is the right ack
             } while(resLen < 0 || res[0] != Ack); // waiting for ack back
-        } else if (res[2] != Ack && res[0] != Error) {
+        } else if (res[0] != Ack && res[0] != Error) {
             // problem with transfer (the other one is stuck sending)
             std::cerr << "send: invalid response: " << res[0] << std::endl;
             // problem here
@@ -234,28 +233,25 @@ long NewPipe::recv(unsigned char* buffer) {
     do {
         reqLen = recvBytes(buffer, packetId);
         if (reqLen < 0) {
-            std::cout << "recv: invalid packet: " << reqLen << std::endl;
+            std::cerr << "recv: invalid packet: " << reqLen << std::endl;
             continue;
         } else if (packetId < ack_+1) {
-            std::cout << "recv: repeated packet: " << packetId << std::endl;
+            std::cerr << "recv: repeated packet: " << packetId << std::endl;
             sendHeader(Ack, packetId);
         } else if (packetId > ack_+1) {
             toRecv_[packetId] = Bytes(buffer, reqLen);
-            std::cout << "recv: missing packet: " << packetId << std::endl;
+            std::cerr << "recv: missing packet: " << packetId << std::endl;
             sendHeader(MissingPacket, ack_+1);
         } // else  packetId == ack+1
     } while (packetId != ack_+1 || reqLen == INVALID_CRC || reqLen == INVALID_PACKET || reqLen == TIMEOUT);
-    std::cout << reqLen << ", " << (reqLen == TIMEOUT) << std::endl;
 
     ack_++;
-    std::cout << "recv: ack: " << ack_ << std::endl;
     sendHeader(Ack, ack_);
 
     toRecv_[packetId] = Bytes(buffer, reqLen);
     if (packetId == incoming_+1) {
         incoming_++;
     }
-    std::cout << "recv: incoming: " << incoming_ << std::endl;
     return reqLen;
 }
 
@@ -268,29 +264,26 @@ long NewPipe::recvBatch() {
     do {
         reqLen = recvBytes(infoBuffer, packetId);
     } while (reqLen < 0); // packets either didn't arrive or are invalid
-    std::cout << "Packet received, len: " << reqLen << std::endl;
     toRecv_[packetId] = Bytes(infoBuffer+2, reqLen-2); // store the packet (without window information)
     int start = packetId - infoBuffer[0];
     int windowSize = infoBuffer[1];
     int remainingPacketCount = windowSize - 1;
-    std::cout << "packetCount: " << remainingPacketCount << ", " << infoBuffer[1] << std::endl;
 
     bool* receivedPackets = new bool[windowSize];
     receivedPackets[infoBuffer[0]] = true;
 
     do {
-        for (int i = 0; i < remainingPacketCount; i++) { // listen for remaining packets
+        int remPacketCount = remainingPacketCount;
+        for (int i = 0; i < remPacketCount; i++) { // listen for remaining packets
             unsigned char reqBuffer[BUFFERS_LEN];
             reqLen = recvBytes(reqBuffer, packetId);
             if (reqLen < 0) {
-                std::cout << "Weird packet: skipping " << i << std::endl;
+                std::cerr << "Weird packet: skipping " << i << std::endl;
                 continue;
             }
             // check if data incoming has wrong header
-            std::cout << "recvBatch: packetId: " << packetId << ", incoming: " << incoming_ << std::endl;
             toRecv_[packetId] = Bytes(reqBuffer+2, reqLen-2); // store the packet (without window information)
             receivedPackets[reqBuffer[0]] = true; 
-            std::cout << "recvBatch: remainingPacketCount: " << remainingPacketCount << std::endl;
             remainingPacketCount--;
         }
         // send ack
@@ -300,55 +293,56 @@ long NewPipe::recvBatch() {
         sendBytes(buffer, windowSize+1, packetId);
     } while (remainingPacketCount > 0);
 
-    std::cout << "recv: len: " << reqLen << ", isTimeout: " << (reqLen == TIMEOUT) << std::endl;
-    std::cout << "recv: ack: " << ack_ << std::endl;
     if (packetId == incoming_+1) {
         incoming_++;
     }
-    std::cout << "recv: incoming: " << incoming_ << std::endl;
+
     delete[] receivedPackets;
     return reqLen;
 }
 
-long NewPipe::submitHeader(const unsigned char header) {
-    return submit(&header, 1);
+long NewPipe::submitHeader(const unsigned char header, bool forceSend) {
+    return submit(&header, 1, forceSend);
 }
 
-long NewPipe::submit(HeaderType header, unsigned char* bytes, int len) {
-    return submit(header, (const unsigned char*)bytes, len);
+long NewPipe::submit(HeaderType header, unsigned char* bytes, int len, bool forceSend) {
+    return submit(header, (const unsigned char*)bytes, len, forceSend);
 }
 
 
-long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len) {
+long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len, bool forceSend) {
     unsigned char* newBytes = new unsigned char[len+1];
     newBytes[0] = header;
     memcpy(newBytes+1, bytes, len);
-    long res = submit(newBytes, len+1);
+    long res = submit(newBytes, len+1, forceSend);
     delete[] newBytes;
     return res;
 }
 
-long NewPipe::submit(const unsigned char* bytes, int len) {
+long NewPipe::submit(const unsigned char* bytes, int len, bool forceSend) {
     toSend_[submited_] = Bytes(bytes, len);
-    std::cout << "submit: submited: " << submited_ << std::endl;
-    if (submited_ % WINDOW_SIZE == 0 && submited_ != 0) 
-        sendBatch(submited_ - WINDOW_SIZE, submited_);
+    if (forceSend) {
+        sendBatch(packet_+1, submited_+1);
+    } else if (submited_ % (WINDOW_SIZE - 1) == 0 && submited_ != 0) 
+        sendBatch(submited_ - WINDOW_SIZE+1, submited_+1);
     submited_++;
     return len;
 }
 
-long NewPipe::next(unsigned char* buffer, bool blocking) {
+long NewPipe::next(unsigned char* buffer, bool forceRecv) {
     loaded_++;
-    std::cout << "next: loaded: " << loaded_ << std::endl;
     if (loaded_ % WINDOW_SIZE == 0)
         recvBatch();
-    if (toRecv_.find(loaded_+1) == toRecv_.end()) {
-        std::cerr << "next: missing packet: " << loaded_+1 << std::endl;
-        return -1;
+    if (toRecv_.find(loaded_) == toRecv_.end()) {
+        if (forceRecv) {
+            recvBatch();
+        } else {
+            std::cerr << "next: missing packet: " << loaded_+1 << std::endl;
+            return -1;
+        }
     }
     long len = toRecv_[loaded_].len;
     memcpy(buffer, toRecv_[loaded_].bytes, len);
-    std::cout << "next: buffer: " << len << ", " << buffer << std::endl;
     return len;
 }
 

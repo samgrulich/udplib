@@ -40,11 +40,11 @@ public:
     void sendHeader(const unsigned char header, int32_t packetId);
     NewPipe(const char* remote_address, const int local_port, const int remote_port);
     ~NewPipe();
-    long submitHeader(const unsigned char header);
-    long submit(HeaderType header, unsigned char* bytes, int len);
-    long submit(HeaderType header, const unsigned char* bytes, int len);
+    long submitHeader(const unsigned char header, bool forceSend=false);
+    long submit(HeaderType header, unsigned char* bytes, int len, bool forceSend=false);
+    long submit(HeaderType header, const unsigned char* bytes, int len, bool forceSend=false);
     // submit packet for sending
-    long submit(const unsigned char* bytes, int len);
+    long submit(const unsigned char* bytes, int len, bool forceSend=false);
     // load packet from the buffer if at the end return -1
-    long next(unsigned char* buffer, bool blocking=false);
+    long next(unsigned char* buffer, bool forceRecv=false);
 };

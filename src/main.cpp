@@ -53,14 +53,11 @@ int main(int argc, char* argv[]) {
     uint64_t fileSize = std::filesystem::file_size(filePath);
 
     std::cout << "Sending file: " << filePath << std::endl;
-    std::cout << "Name" << std::endl;
     pipe.submit(HeaderType::Name, (unsigned char*)filePath, strlen(filePath)+1);
-    std::cout << "Size" << std::endl;
     pipe.submit(HeaderType::Size, (unsigned char*)&fileSize, sizeof(fileSize));
     // send file
     char data[BUFFERS_LEN];
     unsigned char msg[BUFFERS_LEN];
-    std::cout << "Data" << std::endl;
     do {
         pipe.submitHeader(HeaderType::Start);
         do {
@@ -69,65 +66,51 @@ int main(int argc, char* argv[]) {
             pipe.submit(HeaderType::Data, (unsigned char*)data, size);
             hasher.updateHash(data, size);
         } while (!file.eof());
-        std::cout << "Stop" << std::endl;
         pipe.submitHeader(HeaderType::Stop);
-        std::cout << "Hash" << std::endl;
         std::string hash = hasher.getHash();
-        pipe.submit(HeaderType::Hash, (unsigned char*)(hash.c_str()), hash.length()+1);
-        std::cout << "Waiting for fileack" << std::endl;
-        pipe.next(msg);
+        pipe.submit(HeaderType::Hash, (unsigned char*)(hash.c_str()), hash.length()+1, true);
+        pipe.next(msg, true);
     } while (msg[0] != FileAck);
     unsigned char buffer[BUFFERS_LEN];
     int32_t resId;
 
-    for (int i = 0; i < 3; i++) {
-        if (pipe.recvBytes(buffer, resId) >= 0) {
-            pipe.sendHeader(HeaderType::Ack, resId);
-        }
-    }
+    // for (int i = 0; i < 3; i++) {
+    //     if (pipe.recvBytes(buffer, resId) >= 0) {
+    //         pipe.sendHeader(HeaderType::Ack, resId);
+    //     }
+    // }
     std::cout << "File sent!" << std::endl;
 #endif // SENDER
 
 #ifdef RECEIVER
     std::cout << "Listening for incoming connection." << std::endl;
     // initial recv 
-    std::cout << "Waiting for name" << std::endl;
     unsigned char buffer[BUFFERS_LEN];
     size_t len = 0;
     len = pipe.next(buffer);
-    std::cout << (char*)(buffer+1) << std::endl;
-    std::cout << (int)len << std::endl;
     std::string name = std::string((char*)buffer+1, len-1);
     std::ofstream file(name, std::ios::binary);
-    std::cout << "Waiting for size" << std::endl;
     len = pipe.next(buffer);
     uint64_t size = *(uint64_t*)(buffer+1);
     std::cout << "File: " << name << ", size: " << size << std::endl;
     bool hashesMatch = true;
     do {
-        std::cout << "Waiting for start" << std::endl;
         len = pipe.next(buffer); // start
-        std::cout << "Receiving file" << std::endl;
         len = pipe.next(buffer);  // data
         while (buffer[0] != HeaderType::Stop) {
             hasher.updateHash((char*)(buffer+1), len-1);
             file.write((char*)(buffer+1), len-1);
-            std::cout << "Waiting for next data" << std::endl;
             len = pipe.next(buffer);  // data
             printf("Data[0]: %d", buffer[0]);
-            std::cout << ", Stop " << HeaderType::Stop << ", eq: " << HeaderType::Stop << std::endl;
         }
-        std::cout << "Waiting for hash" << std::endl;
-        len = pipe.next(buffer);  // hash
+        len = pipe.next(buffer, true);  // hash
         hashesMatch = strcmp(hasher.getHash().c_str(), (char*)(buffer+1)) == 0;
         if(!hashesMatch) {
-            pipe.submitHeader(HeaderType::FileError);
-            std::cout << "File recieve failed, restarting" << std::endl;
+            pipe.submitHeader(HeaderType::FileError, true);
+            std::cerr << "File recieve failed, restarting" << std::endl;
         }
-        std::cout << "After hash match" << std::endl;
     } while(!hashesMatch); // restart recv file
-    std::cout << "Sending fileack" << std::endl;
-    pipe.submitHeader(HeaderType::FileAck);
+    pipe.submitHeader(HeaderType::FileAck, true);
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER
     return 0;
