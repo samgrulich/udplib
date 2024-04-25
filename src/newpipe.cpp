@@ -296,6 +296,10 @@ long NewPipe::recvBatch() {
                 continue;
             }
             if (reqLen < 0) {
+                if (reqLen == TIMEOUT) {
+                    std::cerr << "recvBatch: timeout: " << packetId << std::endl;
+                    break;
+                }
                 std::cerr << "Weird packet: skipping " << i << std::endl;
                 continue;
             }

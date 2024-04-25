@@ -29,13 +29,13 @@ protected:
     std::unordered_map<int32_t, Bytes> toSend_;
     std::unordered_map<int32_t, Bytes> toRecv_;
 private:
-    long sendBytes(Bytes bytes, int32_t packetId);
-    long sendBytes(const unsigned char* bytes, int len, int32_t packetId);
     long send(const unsigned char* bytes, int len);
     long sendBatch(int start, int stop);
     long recv(unsigned char* buffer);
     long recvBatch();
 public:
+    long sendBytes(Bytes bytes, int32_t packetId);
+    long sendBytes(const unsigned char* bytes, int len, int32_t packetId);
     long recvBytes(unsigned char* buffer, int32_t& packetId);
     void sendHeader(const unsigned char header, int32_t packetId);
     NewPipe(const char* remote_address, const int local_port, const int remote_port);
