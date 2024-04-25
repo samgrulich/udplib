@@ -185,15 +185,17 @@ long NewPipe::sendBatch(int start, int stop) {
                 i++; 
             }
             resLen = recvBytes(res, resId); 
-        } while(resLen == TIMEOUT); // no response received
+        } while(resLen < 0); // no or wrong response received 
         if (res[0] == Ack) { // at least some packets received
             for (int i = 0; i < windowSize; i++) {
                 int packetId = start + i;
                 if (remPackets[packetId] == false) 
                     continue;
                 // todo: possible to add a layer of protection by checking if the packetId is in the map 
-                remPackets[packetId] = res[3+i] == 1 ? false : true; // if res == 1 the packet has been received
-                remainingPacketCount--;
+                bool received = res[1+i] == 1 ? true : false;
+                remPackets[packetId] = !received; // if res == 1 the packet has been received
+                if (received)
+                    remainingPacketCount--;
             }
         } else if (res[0] == MissingAck) {
             std::cerr << "send: Sending missing ack: " << resId << std::endl;
