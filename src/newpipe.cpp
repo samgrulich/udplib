@@ -2,7 +2,10 @@
 
 #include <cstdio>
 #include <cstring>
+#include <ios>
 #include <iostream>
+#include <list>
+#include <map>
 
 #include "CRC.h"
 #include "common.h"
@@ -154,42 +157,73 @@ long NewPipe::sendBatch(int start, int stop) {
     int32_t resId = -1;
     int startPacket = start, stopPacket = stop;
 
-    packet_ += WINDOW_SIZE; // replace for stop - start ?
-    std::cout << "sendBatch: start: " << start << ", stop: " << stop << std::endl;
+    // window creation
+    int remainingPacketCount = stop - start;
+    std::map<int, bool> remPackets;
+    std::list<Bytes> toSend;
+    int windowSize = stop - start;
+    for (int i = 0; i < windowSize; i++) {
+        int packetId = start + i;
+        Bytes packet = toSend_[packetId];
+        unsigned char buffer[BUFFERS_LEN]; // todo: possible error due to big bytes
+        memcpy(buffer+2, packet.bytes, packet.len);
+        buffer[0] = i;
+        buffer[1] = windowSize;
+        remPackets[packetId] = true;
+        toSend.push_back(Bytes(buffer, packet.len+2));
+    }
+
     do {
         long resLen;
         do {
-            for (int i = startPacket; i < stopPacket; i++) {
-                Bytes msg = toSend_[i];
-                reqLen = sendBytes(msg, i);
-            } 
-            resLen = recvBytes(res, resId);
-        } while (resLen < 0); // loop for resending dropped windows (or acks)
-        if (res[0] == MissingAck) {
+            int i = 0;
+            for (Bytes& packet : toSend) {
+                int packetId = start + i;
+                if (remPackets[packetId]) { // packet has not been received yet, send it
+                    std::cout << "packetCount " << packet.bytes[0] << std::endl;
+                    long reqLen = sendBytes(packet, packetId);
+                }
+                i++; 
+            }
+            resLen = recvBytes(res, resId); 
+        } while(resLen == TIMEOUT); // no response received
+        if (res[2] == Ack) { // at least some packets received
+            for (int i = 0; i < windowSize; i++) {
+                int packetId = start + i;
+                if (remPackets[packetId] == false) 
+                    continue;
+                // todo: possible to add a layer of protection by checking if the packetId is in the map 
+                remPackets[packetId] = res[3+i] == 1 ? false : true; // if res == 1 the packet has been received
+                remainingPacketCount--;
+            }
+        } else if (res[2] == MissingAck) {
             std::cerr << "send: Sending missing ack: " << resId << std::endl;
             // todo: add check if it is "future" packet request resend of the previous
             // resend ack
             sendHeader(Ack, resId);
-        } else if (res[0] == MissingPacket) {
+        } else if (res[2] == MissingPacket) {
             // resend packet
             std::cerr << "send: Resending missing packet: " << resId << std::endl;
             Bytes toSend = toSend_[resId];
-            sendBytes(toSend, resId);
-        } else if (res[0] != Ack && res[0] != Error) {
+            unsigned char buffer[BUFFERS_LEN]; 
+            long resLen;
+            do {
+                sendBytes(toSend, resId); 
+                resLen = recvBytes(res, resId); 
+                // todo: check if this is the right ack
+            } while(resLen < 0 || res[0] != Ack); // waiting for ack back
+        } else if (res[2] != Ack && res[0] != Error) {
+            // problem with transfer (the other one is stuck sending)
             std::cerr << "send: invalid response: " << res[0] << std::endl;
             // problem here
             if (resId < 0) 
                 continue;
             sendHeader(MissingAck, resId);
             resLen = recvBytes(res, resId);
-            // todo: possible another checks ??
         } 
-        if (startPacket < resId < stopPacket) {
-            startPacket = resId;
-        }
-        // if resId > stopPacket somethings wrong
-    } while (resId != stopPacket); // exit only if came in ack with the stopPacket
-
+    } while(remainingPacketCount > 0); // exit only if all packets have been received
+    packet_ += stop - start;
+    
     // req sent and ack received
     return reqLen;
 }
@@ -228,37 +262,51 @@ long NewPipe::recv(unsigned char* buffer) {
 long NewPipe::recvBatch() {
     int32_t packetId;
     long reqLen; 
-    int remPackets = WINDOW_SIZE;
+
+    // packet info catcher
+    unsigned char infoBuffer[BUFFERS_LEN];
+    do {
+        reqLen = recvBytes(infoBuffer, packetId);
+    } while (reqLen < 0); // packets either didn't arrive or are invalid
+    std::cout << "Packet received, len: " << reqLen << std::endl;
+    toRecv_[packetId] = Bytes(infoBuffer+2, reqLen-2); // store the packet (without window information)
+    int start = packetId - infoBuffer[0];
+    int windowSize = infoBuffer[1];
+    int remainingPacketCount = windowSize - 1;
+    std::cout << "packetCount: " << remainingPacketCount << ", " << infoBuffer[1] << std::endl;
+
+    bool* receivedPackets = new bool[windowSize];
+    receivedPackets[infoBuffer[0]] = true;
 
     do {
-        for (int i = 0; i < remPackets; i++) {
-            unsigned char buffer[BUFFERS_LEN];
-            reqLen = recvBytes(buffer, packetId);
-            if (reqLen == TIMEOUT) {
-                // send ack of last received packet
-                std::cout << "recvBatch: timeout" << std::endl;
-                break;
-            } else if (reqLen == INVALID_CRC) {
-                // drop packet
-                std::cout << "recvBatch: invalid crc" << std::endl;
-                break;
-            } else if (packetId != ack_+5) { // todo: correct this formula to check if the packet is within current window
-                toRecv_[packetId] = Bytes(buffer, reqLen);
-                std::cout << "recvBatch: packet: " << packetId << std::endl;
-                remPackets--;
-                ack_++;
-                // imcoming++ ?
+        for (int i = 0; i < remainingPacketCount; i++) { // listen for remaining packets
+            unsigned char reqBuffer[BUFFERS_LEN];
+            reqLen = recvBytes(reqBuffer, packetId);
+            if (reqLen < 0) {
+                std::cout << "Weird packet: skipping " << i << std::endl;
+                continue;
             }
+            // check if data incoming has wrong header
+            std::cout << "recvBatch: packetId: " << packetId << ", incoming: " << incoming_ << std::endl;
+            toRecv_[packetId] = Bytes(reqBuffer+2, reqLen-2); // store the packet (without window information)
+            receivedPackets[reqBuffer[0]] = true; 
+            std::cout << "recvBatch: remainingPacketCount: " << remainingPacketCount << std::endl;
+            remainingPacketCount--;
         }
-        if (remPackets != WINDOW_SIZE)
-            sendHeader(Ack, ack_);
-    } while (remPackets != 0);
+        // send ack
+        unsigned char buffer[windowSize+1];
+        memcpy(buffer+1, receivedPackets, windowSize);
+        buffer[0] = Ack;
+        sendBytes(buffer, windowSize+1, packetId);
+    } while (remainingPacketCount > 0);
+
     std::cout << "recv: len: " << reqLen << ", isTimeout: " << (reqLen == TIMEOUT) << std::endl;
     std::cout << "recv: ack: " << ack_ << std::endl;
     if (packetId == incoming_+1) {
         incoming_++;
     }
     std::cout << "recv: incoming: " << incoming_ << std::endl;
+    delete[] receivedPackets;
     return reqLen;
 }
 
