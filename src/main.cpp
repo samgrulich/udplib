@@ -12,23 +12,23 @@
 // #define SENDER
 // #define RECEIVER
 
-#define TARGET_IP   "127.0.0.1"
+// #define TARGET_IP   "127.0.0.1"
 // #define TARGET_IP   "147.32.219.23"
-// #define TARGET_IP   "10.0.0.7"
+#define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
 #define LOCAL_PORT 5001
 #endif // SENDER
 
-// #ifdef RECEIVER
-// #define TARGET_PORT 4001 
-// #define LOCAL_PORT 5000 
-// #endif // RECEIVER
 #ifdef RECEIVER
-#define TARGET_PORT 5001 
-#define LOCAL_PORT 4000 
+#define TARGET_PORT 4001 
+#define LOCAL_PORT 5000 
 #endif // RECEIVER
+// #ifdef RECEIVER
+// #define TARGET_PORT 5001 
+// #define LOCAL_PORT 4000 
+// #endif // RECEIVER
 
 
 int main(int argc, char* argv[]) {

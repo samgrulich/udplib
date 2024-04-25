@@ -272,11 +272,14 @@ long NewPipe::recvBatch() {
     bool* receivedPackets = new bool[windowSize];
     receivedPackets[infoBuffer[0]] = true;
 
+    int remPacketCount = remainingPacketCount;
     do {
-        int remPacketCount = remainingPacketCount;
         for (int i = 0; i < remPacketCount; i++) { // listen for remaining packets
             unsigned char reqBuffer[BUFFERS_LEN];
             reqLen = recvBytes(reqBuffer, packetId);
+            if (receivedPackets[reqBuffer[0]]) {
+                continue;
+            }
             if (reqLen < 0) {
                 std::cerr << "Weird packet: skipping " << i << std::endl;
                 continue;
