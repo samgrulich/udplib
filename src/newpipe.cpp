@@ -153,7 +153,7 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 
 long NewPipe::sendBatch(int start, int stop) {
     unsigned char res[BUFFERS_LEN];
-    long reqLen;
+    long reqLen = 0;
     int32_t resId = -1;
     int startPacket = start, stopPacket = stop;
 
@@ -272,7 +272,7 @@ long NewPipe::recvBatch() {
         windowSize = infoBuffer[1];
         if (start < incoming_) { // send ack for repeated packet
             std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
-            unsigned char buffer[windowSize+1];
+            unsigned char *buffer = new unsigned char[windowSize+1];
             buffer[0] = Ack;
             for (int i = 1; i < windowSize+1; i++) {
                 buffer[i] = 1;
@@ -285,6 +285,11 @@ long NewPipe::recvBatch() {
     int remainingPacketCount = windowSize - 1;
 
     bool* receivedPackets = new bool[windowSize];
+
+    for (int i = 0; i < windowSize; i++) {
+        receivedPackets[i] = false;
+    }
+
     receivedPackets[infoBuffer[0]] = true;
 
     int remPacketCount = remainingPacketCount;
@@ -309,10 +314,15 @@ long NewPipe::recvBatch() {
             remainingPacketCount--;
         }
         // send ack
-        unsigned char buffer[windowSize+1];
-        memcpy(buffer+1, receivedPackets, windowSize);
+        unsigned char* buffer = new unsigned char[windowSize + 1];
+
+        for (int i = 0; i < windowSize; i++) {
+            buffer[i + 1] = receivedPackets[i] ? 1 : 0;
+        }
+
+        //memcpy(buffer+1, receivedPackets, windowSize);
         buffer[0] = Ack;
-        sendBytes(buffer, windowSize+1, packetId);
+        sendBytes(buffer, windowSize+1, start);
     } while (remainingPacketCount > 0);
 
     incoming_ += windowSize;
