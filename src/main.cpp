@@ -10,11 +10,11 @@
 #include "newpipe.h"
 
 // #define SENDER
-#define RECEIVER
+// #define RECEIVER
 
 // #define TARGET_IP   "127.0.0.1"
-#define TARGET_IP   "147.32.218.251"
-//#define TARGET_IP   "10.0.0.7"
+// #define TARGET_IP   "147.32.218.251"
+#define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
         pipe.submitHeader(HeaderType::Start);
         do {
             // crc, packetid, header
-            int size = file.read(data, BUFFERS_LEN-9).gcount();
+            int size = file.read(data, BUFFERS_LEN-11).gcount();
             pipe.submit(HeaderType::Data, (unsigned char*)data, size);
             hasher.updateHash(data, size);
         } while (!file.eof());

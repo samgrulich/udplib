@@ -186,23 +186,23 @@ long NewPipe::sendBatch(int start, int stop) {
             }
             resLen = recvBytes(res, resId); 
         } while(resLen < 0); // no or wrong response received 
-        if (res[0] == Ack) { // at least some packets received
+        if (res[2] == Ack) { // at least some packets received
             for (int i = 0; i < windowSize; i++) {
                 int packetId = start + i;
                 if (remPackets[packetId] == false) 
                     continue;
                 // todo: possible to add a layer of protection by checking if the packetId is in the map 
-                bool received = res[1+i] == 1 ? true : false;
+                bool received = res[3+i] == 1 ? true : false;
                 remPackets[packetId] = !received; // if res == 1 the packet has been received
                 if (received)
                     remainingPacketCount--;
             }
-        } else if (res[0] == MissingAck) {
+        } else if (res[2] == MissingAck) {
             std::cerr << "send: Sending missing ack: " << resId << std::endl;
             // todo: add check if it is "future" packet request resend of the previous
             // resend ack
             sendHeader(Ack, resId);
-        } else if (res[0] == MissingPacket) {
+        } else if (res[2] == MissingPacket) {
             // resend packet
             std::cerr << "send: Resending missing packet: " << resId << std::endl;
             Bytes toSend = toSend_[resId];
@@ -213,7 +213,7 @@ long NewPipe::sendBatch(int start, int stop) {
                 resLen = recvBytes(res, resId); 
                 // todo: check if this is the right ack
             } while(resLen < 0 || res[0] != Ack); // waiting for ack back
-        } else if (res[0] != Ack && res[0] != Error) {
+        } else if (res[2] != Ack && res[0] != Error) {
             // problem with transfer (the other one is stuck sending)
             std::cerr << "send: invalid response: " << res[0] << std::endl;
             // problem here
@@ -267,7 +267,7 @@ long NewPipe::recvBatch() {
     do {
         do {
             reqLen = recvBytes(infoBuffer, packetId);
-        } while (reqLen < 0); // packets either didn't arrive or are invalid
+        } while (reqLen < 0 || infoBuffer[2] == Ack); // packets either didn't arrive or are invalid
         start = packetId - infoBuffer[0];
         windowSize = infoBuffer[1];
         if (start < incoming_) { // send ack for repeated packet
@@ -314,15 +314,16 @@ long NewPipe::recvBatch() {
             remainingPacketCount--;
         }
         // send ack
-        unsigned char* buffer = new unsigned char[windowSize + 1];
+        unsigned char* buffer = new unsigned char[windowSize + 3];
 
+        buffer[0] = 0;
+        buffer[1] = 1;
+        buffer[2] = Ack;
         for (int i = 0; i < windowSize; i++) {
-            buffer[i + 1] = receivedPackets[i] ? 1 : 0;
+            buffer[i + 3] = receivedPackets[i] ? 1 : 0;
         }
 
-        //memcpy(buffer+1, receivedPackets, windowSize);
-        buffer[0] = Ack;
-        sendBytes(buffer, windowSize+1, start);
+        sendBytes(buffer, windowSize+3, start);
     } while (remainingPacketCount > 0);
 
     incoming_ += windowSize;
@@ -353,7 +354,7 @@ long NewPipe::submit(const unsigned char* bytes, int len, bool forceSend) {
     toSend_[submited_] = Bytes(bytes, len);
     if (forceSend) {
         sendBatch(packet_+1, submited_+1);
-    } else if (submited_ % (WINDOW_SIZE - 1) == 0 && submited_ != 0) 
+    } else if ((submited_ % WINDOW_SIZE)  == WINDOW_SIZE-1 && submited_ != 0) 
         sendBatch(submited_ - WINDOW_SIZE+1, submited_+1);
     submited_++;
     return len;
