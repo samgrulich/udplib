@@ -78,12 +78,7 @@ int main(int argc, char* argv[]) {
         if (pipe.recvBytes(buffer, resId) >= 0) {
             int start = resId - buffer[0];
             int windowSize = buffer[1];
-            unsigned char ackBuffer[windowSize+1];
-            ackBuffer[0] = Ack;
-            for (int i = 1; i < windowSize+1; i++) {
-                ackBuffer[i] = 1;
-            }
-            pipe.sendBytes(ackBuffer, windowSize+1, resId);
+            pipe.sendPositiveAck(windowSize, resId);
         }
     }
 

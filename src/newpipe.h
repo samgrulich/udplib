@@ -37,6 +37,7 @@ public:
     long sendBytes(Bytes bytes, int32_t packetId);
     long sendBytes(const unsigned char* bytes, int len, int32_t packetId);
     long recvBytes(unsigned char* buffer, int32_t& packetId);
+    void sendPositiveAck(int incomingWindowSize, int packetId);
     void sendHeader(const unsigned char header, int32_t packetId);
     NewPipe(const char* remote_address, const int local_port, const int remote_port);
     ~NewPipe();

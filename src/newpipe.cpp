@@ -111,7 +111,7 @@ long NewPipe::recvBytes(unsigned char* buffer, int32_t& packetId) {
 }
 
 void NewPipe::sendHeader(const unsigned char header, int32_t packetId) {
-    unsigned char bytes[1] = {header};
+    unsigned char bytes[3] = {0, 1, header};
     sendBytes(bytes, 1, packetId);
 }
 
@@ -149,6 +149,17 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 
     // req sent and ack received
     return reqLen;
+}
+
+void NewPipe::sendPositiveAck(int incomingWindowSize, int packetId) {
+    unsigned char* buffer = new unsigned char[incomingWindowSize+3];
+    buffer[0] = 0;
+    buffer[1] = 1;
+    buffer[2] = Ack;
+    for (int i = 0; i < incomingWindowSize; i++) {
+        buffer[i + 3] = 1;
+    }
+    sendBytes(buffer, incomingWindowSize+3, packetId);
 }
 
 long NewPipe::sendBatch(int start, int stop) {
@@ -212,11 +223,13 @@ long NewPipe::sendBatch(int start, int stop) {
                 sendBytes(toSend, resId); 
                 resLen = recvBytes(res, resId); 
                 // todo: check if this is the right ack
-            } while(resLen < 0 || res[0] != Ack); // waiting for ack back
-        } else if (res[2] != Ack && res[0] != Error) {
+            } while(resLen < 0 || res[2] != Ack); // waiting for ack back
+        } else if (res[2] != Ack && res[2] != Error) {
             // problem with transfer (the other one is stuck sending)
             std::cerr << "send: invalid response: " << res[0] << std::endl;
-            // problem here
+            if (resId <= incoming_) {
+                sendPositiveAck(res[1], resId); // send ack
+            }
             if (resId < 0) 
                 continue;
             sendHeader(MissingAck, resId);
@@ -263,21 +276,23 @@ long NewPipe::recvBatch() {
 
     // packet info catcher
     unsigned char infoBuffer[BUFFERS_LEN];
-    int start, windowSize;
+    int start, windowSize, i = WINDOW_SIZE;
     do {
+        bool toReceive = true;
         do {
             reqLen = recvBytes(infoBuffer, packetId);
-        } while (reqLen < 0 || infoBuffer[2] == Ack); // packets either didn't arrive or are invalid
+            toReceive = reqLen < 0 || infoBuffer[2] == Ack;
+        } while (toReceive && i != 0); // packets either didn't arrive or are invalid
+        if (toReceive) { // both receiver and sender are receiving
+            sendBatch(packet_-WINDOW_SIZE, packet_);
+            recvBytes(infoBuffer, start); // just dump the result
+            continue;
+        }
         start = packetId - infoBuffer[0];
         windowSize = infoBuffer[1];
         if (start < incoming_) { // send ack for repeated packet
             std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
-            unsigned char *buffer = new unsigned char[windowSize+1];
-            buffer[0] = Ack;
-            for (int i = 1; i < windowSize+1; i++) {
-                buffer[i] = 1;
-            }
-            sendBytes(buffer, windowSize+1, packetId);
+            sendPositiveAck(windowSize, start);
         }
     } while (start < incoming_); // in case of missing ack from previous batch 
                 // (meaning incoming packets and window have been already processed)
