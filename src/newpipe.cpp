@@ -197,7 +197,7 @@ long NewPipe::sendBatch(int start, int stop) {
             }
             resLen = recvBytes(res, resId); 
             if (resLen < 0) {
-                std::cerr << "send: received invalid Ack packet: " << resId << std::endl;
+                std::cerr << "send: received invalid Ack packet: " << resId << ", errCode: " << resLen << std::endl;
             }
         } while(resLen < 0); // no or wrong response received 
         if (res[2] == Ack) { // at least some packets received
@@ -336,6 +336,11 @@ long NewPipe::recvBatch(bool isFirst) {
         for (int i = 0; i < remPacketCount; i++) { // listen for remaining packets
             unsigned char reqBuffer[BUFFERS_LEN];
             reqLen = recvBytes(reqBuffer, packetId);
+            int packetWindowId = packetId - start;
+            if (packetWindowId < 0 || packetWindowId >= windowSize) {
+                std::cerr << "recvBatch: invalid packet, skipping: " << packetId << std::endl;
+                continue;
+            }
             if (receivedPackets[reqBuffer[0]]) {
                 continue;
             }
