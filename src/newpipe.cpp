@@ -379,7 +379,6 @@ long NewPipe::submit(HeaderType header, unsigned char* bytes, int len, bool forc
     return submit(header, (const unsigned char*)bytes, len, forceSend);
 }
 
-
 long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len, bool forceSend) {
     unsigned char* newBytes = new unsigned char[len+1];
     newBytes[0] = header;
@@ -393,11 +392,11 @@ long NewPipe::submit(const unsigned char* bytes, int len, bool forceSend) {
     toSend_[submited_] = Bytes(bytes, len);
     std::cout << "submit: submited: " << submited_ << std::endl;
     if (forceSend) {
-        sendBatch(packet_+1, submited_+1);
         std::cout << "submit: sending batch: " << packet_+1 << ", " << submited_+1 << std::endl;
+        sendBatch(packet_+1, submited_+1);
     } else if ((submited_ % WINDOW_SIZE)  == WINDOW_SIZE-1 && submited_ != 0) {
-        sendBatch(submited_ - WINDOW_SIZE+1, submited_+1);
         std::cout << "submit: sending batch: " << submited_-WINDOW_SIZE+1 << ", " << submited_+1 << std::endl;
+        sendBatch(submited_ - WINDOW_SIZE+1, submited_+1);
     }
     submited_++;
     return len;
@@ -409,6 +408,7 @@ long NewPipe::next(unsigned char* buffer, bool forceRecv) {
     if (loaded_ % WINDOW_SIZE == 0)
         recvBatch(incoming_ == -1);
     while (toRecv_.find(loaded_) == toRecv_.end()) {
+        std::cerr << "next: packet not found: " << loaded_ << ", listening for another batch" << std::endl;
         if (forceRecv) {
             recvBatch(incoming_ == -1 && packet_ == -1);
         } else {
