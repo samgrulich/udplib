@@ -12,9 +12,9 @@
 // #define SENDER
 // #define RECEIVER
 
-// #define TARGET_IP   "127.0.0.1"
+#define TARGET_IP   "127.0.0.1"
 // #define TARGET_IP   "147.32.218.251"
-#define TARGET_IP   "10.0.0.7"
+// #define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
@@ -69,6 +69,7 @@ int main(int argc, char* argv[]) {
         pipe.submitHeader(HeaderType::Stop);
         std::string hash = hasher.getHash();
         pipe.submit(HeaderType::Hash, (unsigned char*)(hash.c_str()), hash.length()+1, true);
+        pipe.flush();
         pipe.next(msg, true);
     } while (msg[0] != FileAck);
     unsigned char buffer[BUFFERS_LEN];

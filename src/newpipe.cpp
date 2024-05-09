@@ -5,6 +5,7 @@
 #include <ios>
 #include <iostream>
 #include <list>
+#include <locale>
 #include <map>
 
 #include "CRC.h"
@@ -152,14 +153,11 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 }
 
 void NewPipe::sendPositiveAck(int incomingWindowSize, int packetId) {
-    unsigned char* buffer = new unsigned char[incomingWindowSize+3];
+    unsigned char* buffer = new unsigned char[3];
     buffer[0] = 0;
     buffer[1] = 1;
     buffer[2] = Ack;
-    for (int i = 0; i < incomingWindowSize; i++) {
-        buffer[i + 3] = 1;
-    }
-    sendBytes(buffer, incomingWindowSize+3, packetId);
+    sendBytes(buffer, 3, packetId);
 }
 
 long NewPipe::sendBatch(int start, int stop) {
@@ -169,10 +167,12 @@ long NewPipe::sendBatch(int start, int stop) {
     int startPacket = start, stopPacket = stop;
 
     // window creation
-    int remainingPacketCount = stop - start;
+    int remainingPacketCount = stopPacket - startPacket;
+    int windowSize = stopPacket - startPacket;
     std::map<int, bool> remPackets;
     std::list<Bytes> toSend;
-    int windowSize = stop - start;
+
+    // creation of initial window
     for (int i = 0; i < windowSize; i++) {
         int packetId = start + i;
         Bytes packet = toSend_[packetId];
@@ -184,6 +184,7 @@ long NewPipe::sendBatch(int start, int stop) {
         toSend.push_back(Bytes(buffer, packet.len+2));
     }
 
+    // send the window
     do {
         long resLen;
         do {
@@ -202,16 +203,35 @@ long NewPipe::sendBatch(int start, int stop) {
         } while(resLen < 0); // no or wrong response received 
         if (res[2] == Ack) { // at least some packets received
             if (resId == start) { // is ack for current window?
+                int32_t* ackData = (int32_t*)(res+3);
+                int errorLen = (resLen-3)/4;
                 for (int i = 0; i < windowSize; i++) {
-                    int packetId = start + i;
-                    if (remPackets[packetId] == false) 
-                        continue;
-                    // todo: possible to add a layer of protection by checking if the packetId is in the map 
-                    bool received = res[3+i] == 1 ? true : false;
-                    remPackets[packetId] = !received; // if res == 1 the packet has been received
-                    if (received)
-                        remainingPacketCount--;
+                    bool received = false;
+                    int packetId = start+i;
+                    for (int j = 0; j < errorLen; j++) {
+                        if (packetId == ackData[j]) received = true; // packet not received
+                    }
+                    if (!received)
+                        remPackets[start+i] = received; // received packet
                 }
+                remainingPacketCount = errorLen;
+                // repopulate the window
+                int newStopPacket = stopPacket + errorLen;
+                stopPacket = newStopPacket;
+                if (stopPacket > submited_)
+                    stopPacket = submited_;
+                int stopDelta = newStopPacket - stopPacket;
+                for (int i = 0; i < (errorLen-stopDelta); i++) {
+                    int packetId = stopPacket + i;
+                    Bytes packet = toSend_[packetId];
+                    unsigned char buffer[BUFFERS_LEN]; // todo: possible error due to big bytes
+                    memcpy(buffer+2, packet.bytes, packet.len);
+                    buffer[0] = i;
+                    buffer[1] = windowSize;
+                    remPackets[packetId] = true;
+                    toSend.push_back(Bytes(buffer, packet.len+2));
+                }
+                windowSize = stopPacket - startPacket;
                 std::cout << "send: received ack, remainingPackets: " << remainingPacketCount << std::endl;
             } else {
                 if (resId > start) {
@@ -219,26 +239,9 @@ long NewPipe::sendBatch(int start, int stop) {
                     return reqLen;
                 } else { // resId < start
                     std::cerr << "send: repeated ack: " << resId << std::endl;
-                    // sendHeader(MissingAck, resId);
                     resLen = recvBytes(res, resId);
                 }
             }
-        } else if (res[2] == MissingAck) {
-            std::cerr << "send: Sending missing ack: " << resId << std::endl;
-            // todo: add check if it is "future" packet request resend of the previous
-            // resend ack
-            sendHeader(Ack, resId);
-        } else if (res[2] == MissingPacket) {
-            // resend packet
-            std::cerr << "send: Resending missing packet: " << resId << std::endl;
-            Bytes toSend = toSend_[resId];
-            unsigned char buffer[BUFFERS_LEN]; 
-            long resLen;
-            do {
-                sendBytes(toSend, resId); 
-                resLen = recvBytes(res, resId); 
-                // todo: check if this is the right ack
-            } while(resLen < 0 || res[2] != Ack); // waiting for ack back
         } else if (res[2] != Ack && res[2] != Error) {
             // problem with transfer (the other one is stuck sending)
             std::cerr << "send: response is not ack, neither error: " << (int)(res[2]) << std::endl;
@@ -248,8 +251,6 @@ long NewPipe::sendBatch(int start, int stop) {
                 sendPositiveAck(res[1], resId-res[0]); // send ack
                 resLen = recvBytes(res, resId);
             }
-            // sendHeader(MissingAck, resId);
-            // resLen = recvBytes(res, resId);
         } 
     } while(remainingPacketCount > 0); // exit only if all packets have been received
     packet_ += stop - start;
@@ -396,15 +397,28 @@ long NewPipe::submit(HeaderType header, const unsigned char* bytes, int len, boo
 long NewPipe::submit(const unsigned char* bytes, int len, bool forceSend) {
     toSend_[submited_] = Bytes(bytes, len);
     std::cout << "submit: submited: " << submited_ << std::endl;
-    if (forceSend) {
-        std::cout << "submit: sending batch: " << packet_+1 << ", " << submited_+1 << std::endl;
-        sendBatch(packet_+1, submited_+1);
-    } else if ((submited_ % WINDOW_SIZE)  == WINDOW_SIZE-1 && submited_ != 0) {
-        std::cout << "submit: sending batch: " << submited_-WINDOW_SIZE+1 << ", " << submited_+1 << std::endl;
-        sendBatch(submited_ - WINDOW_SIZE+1, submited_+1);
-    }
+    // if (forceSend) {
+    //     std::cout << "submit: sending batch: " << packet_+1 << ", " << submited_+1 << std::endl;
+    //     sendBatch(packet_+1, submited_+1);
+    // } else if ((submited_ % WINDOW_SIZE)  == WINDOW_SIZE-1 && submited_ != 0) {
+    //     std::cout << "submit: sending batch: " << submited_-WINDOW_SIZE+1 << ", " << submited_+1 << std::endl;
+    //     sendBatch(submited_ - WINDOW_SIZE+1, submited_+1);
+    // }
     submited_++;
     return len;
+}
+
+long NewPipe::flush() {
+    int messages = submited_ / WINDOW_SIZE;
+    for (int i = 0; i < messages; i++) {
+        sendBatch(i*WINDOW_SIZE, (i+1)*WINDOW_SIZE);
+    }
+
+    if (submited_ % WINDOW_SIZE != 0) {
+        sendBatch(messages*WINDOW_SIZE, submited_);
+    }
+
+    return 0;
 }
 
 long NewPipe::next(unsigned char* buffer, bool forceRecv) {
