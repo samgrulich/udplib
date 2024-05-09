@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
     unsigned char buffer[BUFFERS_LEN];
     int32_t resId;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 5; i++) {
         if (pipe.recvBytes(buffer, resId) >= 0) {
             int start = resId - buffer[0];
             int windowSize = buffer[1];
