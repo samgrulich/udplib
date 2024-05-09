@@ -32,7 +32,7 @@ private:
     long send(const unsigned char* bytes, int len);
     long sendBatch(int start, int stop);
     long recv(unsigned char* buffer);
-    long recvBatch();
+    long recvBatch(bool isFirst = false);
 public:
     long sendBytes(Bytes bytes, int32_t packetId);
     long sendBytes(const unsigned char* bytes, int len, int32_t packetId);

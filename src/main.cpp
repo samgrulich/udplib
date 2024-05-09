@@ -110,8 +110,7 @@ int main(int argc, char* argv[]) {
         while (buffer[0] != HeaderType::Stop) {
             hasher.updateHash((char*)(buffer+1), len-1);
             file.write((char*)(buffer+1), len-1);
-            len = pipe.next(buffer);  // data
-            printf("Data[0]: %d", buffer[0]);
+            len = pipe.next(buffer);  // data or stop
         }
         len = pipe.next(buffer, true);  // hash
         hashesMatch = strcmp(hasher.getHash().c_str(), (char*)(buffer+1)) == 0;
