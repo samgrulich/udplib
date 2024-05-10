@@ -26,11 +26,13 @@ protected:
     int32_t incoming_ = -1;
     // Number of last acknowledgment packet
     int32_t ack_ = -1;
+    int32_t windowStart_ = -1;
+    int32_t windowEnd_ = -1;
     std::unordered_map<int32_t, Bytes> toSend_;
     std::unordered_map<int32_t, Bytes> toRecv_;
 private:
     long send(const unsigned char* bytes, int len);
-    long sendBatch(int start, int stop);
+    long sendBatch();
     long recv(unsigned char* buffer);
     long recvBatch(bool isFirst = false);
 public:
