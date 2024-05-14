@@ -157,59 +157,69 @@ void NewPipe::sendPositiveAck(int incomingWindowSize, int packetId) {
     unsigned char* buffer = new unsigned char[3];
     buffer[0] = 0;
     buffer[1] = 1;
-    buffer[2] = Ack;
+    buffer[2] = packetId; // todo: switch for window
+    buffer[3] = Ack;
     sendBytes(buffer, 3, packetId);
 }
 
 long NewPipe::sendBatch() {
     unsigned char res[BUFFERS_LEN];
-    long reqLen = 0;
     int32_t resId = -1;
+    long msgLen = 0;
     int startPacket = windowStart_, stopPacket = windowEnd_;
 
     int windowSize = stopPacket - startPacket;
-    std::map<int, Bytes> window;
+    window_++;
+    std::unordered_map<int, Bytes> window;
 
     for (int i = 0; i < windowSize; i++) {
         int packetId = startPacket + i;
         Bytes packet = toSend_[packetId];
         unsigned char buffer[BUFFERS_LEN]; // todo: possible error due to big bytes
-        memcpy(buffer+2, packet.bytes, packet.len);
+        memcpy(buffer+3, packet.bytes, packet.len);
         buffer[0] = i;
         buffer[1] = windowSize;
-        sendBytes(buffer, packet.len+2, packetId);
+        buffer[2] = window_;
+        window[packetId] = Bytes(buffer, packet.len+3);
     }
 
     do {
         int resLen;
+        // send current window
         do {
-            // send current window
             for (auto &[packetId, packet] : window) {
                 sendBytes(packet, packetId);
             }
-            // recv ack
-            resLen = recvBytes(res, resId);
-        } while(resLen < 0);
-        int resHeader = res[2];
+            resLen = recvBytes(res, resId); // listen for ack
+        } while(resLen < 0); // repeat until response is received
+        int resHeader = res[3];
         // all checks
         if (resHeader == Ack) {
-            int errorLen = (resLen - 3)/4;
-            int* ackData = (int*)(res+3);
+            // unpack the received packets
+            int idsLen = (resLen - 4)/4; // number of packetIds in the message
+            int* ackData = (int*)(res+4);
             // remove received packets
-            for (int i = 0; i < errorLen; i++) {
-                int errorPacketId = ackData[i];
-                window.erase(errorPacketId);
+            for (int i = 0; i < idsLen; i++) {
+                window.erase(ackData[i]); // unpack the packet id and remove it from win
             }
-            if (window.empty()) { // if empty break
+            if (window.empty()) { // empty window = acknowledged window 
                 break;
             } else {
                 // repopulate the window
-                for (int i = 0; i < errorLen; i++) {
+                for (int i = 0; i < idsLen; i++) {
                     int newPacketId = windowEnd_++;
                     if (toSend_.find(newPacketId) != toSend_.end()) { // are there any more packets to send
                         Bytes newPacket = toSend_[newPacketId];
                         window[newPacketId] = newPacket;
-                    }
+                        break;
+                    } 
+                }
+                window_++;
+                int i = 0;
+                for (auto &[packetId, packet] : window) {
+                    packet.bytes[0] = i;
+                    packet.bytes[1] = window.size();
+                    packet.bytes[2] = window_;
                 }
             }
         } else {
@@ -222,7 +232,6 @@ long NewPipe::sendBatch() {
             }
         }
     } while(true); // repeat
-    packet_ = windowEnd_;
     
     // req sent and ack received
     return windowEnd_ - windowStart_;
@@ -258,52 +267,53 @@ long NewPipe::recv(unsigned char* buffer) {
 
 long NewPipe::recvBatch(bool isFirst) {
     int32_t packetId;
-    long reqLen; 
+    long msgLen; 
 
     // packet info catcher
     unsigned char infoBuffer[BUFFERS_LEN];
-    int start, windowSize, i = WINDOW_SIZE;
+    int windowSize = WINDOW_SIZE, i = WINDOW_SIZE, windowId;
 
-    do {
-        bool toReceive = true;
-        do {
-            reqLen = recvBytes(infoBuffer, packetId);
-            toReceive = reqLen < 0 || infoBuffer[2] == Ack;
-            if (!isFirst) i--;
-        } while (toReceive && i != 0); // packets either didn't arrive or are invalid
-        if (toReceive) { // both receiver and sender are receiving
-            std::cerr << "recvBatch: double receive detected: " << packetId << std::endl;
-            if (packet_ >= WINDOW_SIZE-1) {
-                for (int i = packet_-WINDOW_SIZE+1; i < packet_+1; i++) {
-                    long reqLen = sendBytes(toSend_[i], packetId);
-                }
-                recvBytes(infoBuffer, start); // just dump the result
-            }
-            i = WINDOW_SIZE;
-            continue;
-        }
-        start = packetId - infoBuffer[0]; 
-        windowSize = infoBuffer[1];
-        if (start < incoming_) { // send ack for repeated packet
-            std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
-            i = WINDOW_SIZE;
-            sendPositiveAck(windowSize, start);
-        }
-    } while (start < incoming_); // in case of missing ack from previous batch 
-                // (meaning incoming packets and window have been already processed)
-    toRecv_[packetId] = Bytes(infoBuffer+2, reqLen-2); // store the packet (without window information)
+    // do {
+    //     bool toReceive = true;
+    //     do {
+    //         reqLen = recvBytes(infoBuffer, packetId);
+    //         toReceive = reqLen < 0 || infoBuffer[2] == Ack;
+    //         if (!isFirst) i--;
+    //     } while (toReceive && i != 0); // packets either didn't arrive or are invalid
+    //     if (toReceive) { // both receiver and sender are receiving
+    //         std::cerr << "recvBatch: double receive detected: " << packetId << std::endl;
+    //         if (packet_ >= WINDOW_SIZE-1) {
+    //             for (int i = packet_-WINDOW_SIZE+1; i < packet_+1; i++) {
+    //                 long reqLen = sendBytes(toSend_[i], packetId);
+    //             }
+    //             recvBytes(infoBuffer, start); // just dump the result
+    //         }
+    //         i = WINDOW_SIZE;
+    //         continue;
+    //     }
+    //     start = packetId - infoBuffer[0]; 
+    //     windowSize = infoBuffer[1];
+    //     if (start < incoming_) { // send ack for repeated packet
+    //         std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
+    //         i = WINDOW_SIZE;
+    //         sendPositiveAck(windowSize, start);
+    //     }
+    // } while (start < incoming_); // in case of missing ack from previous batch 
+    //             // (meaning incoming packets and window have been already processed)
+    // toRecv_[packetId] = Bytes(infoBuffer+2, reqLen-2); // store the packet (without window information)
     
     std::map<int, bool> receivedPackets;
-    receivedPackets[packetId] = true;
-    int stopPacket = start + windowSize;
+    // receivedPackets[packetId] = true;
+    // int stopPacket = start + windowSize;
 
     do {
-        for (int i = 0; i < windowSize-1; i++) {
-            unsigned char reqBuffer[BUFFERS_LEN];
-            reqLen = recvBytes(reqBuffer, packetId);
+        std::list<int> receivedPacketIds;
+        for (int i = 0; i < windowSize; i++) {
+            unsigned char msgBuffer[BUFFERS_LEN];
+            msgLen = recvBytes(msgBuffer, packetId);
             // check if the packet is a ok
-            if (reqLen < 0) {
-                if (reqLen == TIMEOUT) {
+            if (msgLen < 0) {
+                if (msgLen == TIMEOUT) {
                     std::cerr << "recvBatch: timeout: " << packetId << std::endl;
                     break;
                 }
@@ -311,67 +321,96 @@ long NewPipe::recvBatch(bool isFirst) {
                 continue;
             }
             // check if the packet is from the current window
-            // check if the packet is not already received
-            if (receivedPackets[packetId]) {
+            windowId = msgBuffer[2];
+            if (windowId != window_+1) {
+                if (windowId < window_+1) {
+                    std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
+                    // sendHeader(Ack, packetId);
+                } else {
+                    if (toRecv_.find(packetId) == toRecv_.end()) {
+                        toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
+                    } else {
+                        std::cerr << "recvBatch: invalid window: " << packetId << std::endl;
+                    }
+                }
                 continue;
             }
-            toRecv_[packetId] = Bytes(reqBuffer+2, reqLen-2); // store the packet (without window information)
+            // check if the packet is not already received
+            if (!receivedPackets[packetId] && toRecv_.find(packetId) == toRecv_.end()) {
+                toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
+            }
             receivedPackets[packetId] = true; 
+            receivedPacketIds.push_back(packetId);
         }
         // generate and send ack
+        unsigned char* buffer = new unsigned char[4 + 4 * receivedPacketIds.size()];
+        buffer[0] = 0;
+        buffer[1] = 1;
+        buffer[2] = ++window_;
+        buffer[3] = Ack;
+        int* idsBuffer = (int*)(buffer+4);
+        int i = 0;
+        for (int& packetId : receivedPacketIds) {
+            idsBuffer[i++] = packetId;
+        }
+
+        // break if whole window was received
+        if (receivedPacketIds.size() == windowSize) {
+            break;
+        }
     } while(true);
 
     incoming_ += windowSize;
 
 
-    int remainingPacketCount = windowSize - 1;
-
-
-    receivedPackets[infoBuffer[0]] = true;
-
-    int remPacketCount = remainingPacketCount;
-    do {
-        for (int i = 0; i < remPacketCount; i++) { // listen for remaining packets
-            unsigned char reqBuffer[BUFFERS_LEN];
-            reqLen = recvBytes(reqBuffer, packetId);
-            int packetWindowId = packetId - start;
-            if (packetWindowId < 0 || packetWindowId >= windowSize) {
-                std::cerr << "recvBatch: invalid packet, skipping: " << packetId << std::endl;
-                continue;
-            }
-            if (receivedPackets[reqBuffer[0]]) {
-                continue;
-            }
-            if (reqLen < 0) {
-                if (reqLen == TIMEOUT) {
-                    std::cerr << "recvBatch: timeout: " << packetId << std::endl;
-                    break;
-                }
-                std::cerr << "recvBatch: invalid packet, skipping: " << packetId << std::endl;
-                continue;
-            }
-            // check if data incoming has wrong header
-            toRecv_[packetId] = Bytes(reqBuffer+2, reqLen-2); // store the packet (without window information)
-            receivedPackets[reqBuffer[0]] = true; 
-            remainingPacketCount--;
-        }
-        // send ack
-        unsigned char* buffer = new unsigned char[windowSize + 3];
-
-        buffer[0] = 0;
-        buffer[1] = 1;
-        buffer[2] = Ack;
-        for (int i = 0; i < windowSize; i++) {
-            buffer[i + 3] = receivedPackets[i] ? 1 : 0;
-        }
-
-        sendBytes(buffer, windowSize+3, start);
-    } while (remainingPacketCount > 0);
-
-    incoming_ += windowSize;
-
-    delete[] receivedPackets;
-    return reqLen;
+    // int remainingPacketCount = windowSize - 1;
+    //
+    //
+    // receivedPackets[infoBuffer[0]] = true;
+    //
+    // int remPacketCount = remainingPacketCount;
+    // do {
+    //     for (int i = 0; i < remPacketCount; i++) { // listen for remaining packets
+    //         unsigned char reqBuffer[BUFFERS_LEN];
+    //         reqLen = recvBytes(reqBuffer, packetId);
+    //         int packetWindowId = packetId - start;
+    //         if (packetWindowId < 0 || packetWindowId >= windowSize) {
+    //             std::cerr << "recvBatch: invalid packet, skipping: " << packetId << std::endl;
+    //             continue;
+    //         }
+    //         if (receivedPackets[reqBuffer[0]]) {
+    //             continue;
+    //         }
+    //         if (reqLen < 0) {
+    //             if (reqLen == TIMEOUT) {
+    //                 std::cerr << "recvBatch: timeout: " << packetId << std::endl;
+    //                 break;
+    //             }
+    //             std::cerr << "recvBatch: invalid packet, skipping: " << packetId << std::endl;
+    //             continue;
+    //         }
+    //         // check if data incoming has wrong header
+    //         toRecv_[packetId] = Bytes(reqBuffer+2, reqLen-2); // store the packet (without window information)
+    //         receivedPackets[reqBuffer[0]] = true; 
+    //         remainingPacketCount--;
+    //     }
+    //     // send ack
+    //     unsigned char* buffer = new unsigned char[windowSize + 3];
+    //
+    //     buffer[0] = 0;
+    //     buffer[1] = 1;
+    //     buffer[2] = Ack;
+    //     for (int i = 0; i < windowSize; i++) {
+    //         buffer[i + 3] = receivedPackets[i] ? 1 : 0;
+    //     }
+    //
+    //     sendBytes(buffer, windowSize+3, start);
+    // } while (remainingPacketCount > 0);
+    //
+    // incoming_ += windowSize;
+    //
+    // delete[] receivedPackets;
+    return msgLen;
 }
 
 long NewPipe::submitHeader(const unsigned char header, bool forceSend) {

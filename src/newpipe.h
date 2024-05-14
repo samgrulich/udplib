@@ -20,8 +20,8 @@ protected:
     int32_t submited_ = 0;
     // Number of last loaded packet from the buffer
     int32_t loaded_ = -1;
-    // Number of last sent packet
-    int32_t packet_ = -1; // todo reset on err
+    // Id of last sent window
+    int32_t window_ = -1; 
     // Number of last accepted packet
     int32_t incoming_ = -1;
     // Number of last acknowledgment packet
