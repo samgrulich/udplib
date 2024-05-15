@@ -122,6 +122,7 @@ long NewPipe::send(const unsigned char* bytes, int len) {
     long reqLen;
     int32_t resId = -1;
 
+    int packet_ = 0;
     packet_++;
     do {
         long resLen;
@@ -159,6 +160,7 @@ void NewPipe::sendPositiveAck(int incomingWindowSize, int packetId) {
     buffer[1] = 1;
     buffer[2] = packetId; // todo: switch for window
     buffer[3] = Ack;
+    // todo: add all the packet numbers
     sendBytes(buffer, 3, packetId);
 }
 
@@ -314,6 +316,10 @@ long NewPipe::recvBatch(bool isFirst) {
             // check if the packet is a ok
             if (msgLen < 0) {
                 if (msgLen == TIMEOUT) {
+                    if (isFirst && i == 0) {
+                        i = -1; 
+                        continue;
+                    }
                     std::cerr << "recvBatch: timeout: " << packetId << std::endl;
                     break;
                 }
@@ -322,6 +328,7 @@ long NewPipe::recvBatch(bool isFirst) {
             }
             // check if the packet is from the current window
             windowId = msgBuffer[2];
+            windowSize = msgBuffer[1];
             if (windowId != window_+1) {
                 if (windowId < window_+1) {
                     std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
@@ -353,6 +360,7 @@ long NewPipe::recvBatch(bool isFirst) {
         for (int& packetId : receivedPacketIds) {
             idsBuffer[i++] = packetId;
         }
+        sendBytes(buffer, 4 + 4 * receivedPacketIds.size(), window_);
 
         // break if whole window was received
         if (receivedPacketIds.size() == windowSize) {
@@ -445,13 +453,17 @@ long NewPipe::submit(const unsigned char* bytes, int len, bool forceSend) {
 }
 
 long NewPipe::flush() {
-    int messages = submited_ / WINDOW_SIZE;
-    for (int i = 0; i < messages; i++) {
-        sendBatch(i*WINDOW_SIZE, (i+1)*WINDOW_SIZE);
-    }
+    int messages = submited_ / WINDOW_SIZE + 1;
+    windowStart_ = 0;
+    windowEnd_ = WINDOW_SIZE;
 
-    if (submited_ % WINDOW_SIZE != 0) {
-        sendBatch(messages*WINDOW_SIZE, submited_);
+    for (int i = 0; i < messages && windowEnd_ != windowStart_; i++) {
+        sendBatch();
+        windowStart_ = windowEnd_;
+        windowEnd_ = windowStart_ + WINDOW_SIZE;
+        if (windowEnd_ > submited_) {
+            windowEnd_ = submited_;
+        }
     }
 
     return 0;
@@ -465,10 +477,10 @@ long NewPipe::next(unsigned char* buffer, bool forceRecv) {
     while (toRecv_.find(loaded_) == toRecv_.end()) {
         std::cerr << "next: packet not found: " << loaded_ << ", listening for another batch" << std::endl;
         if (forceRecv) {
-            recvBatch(incoming_ == -1 && packet_ == -1);
+            recvBatch();
         } else {
             std::cerr << "next: packet not found: " << loaded_ << ", listening for another batch" << std::endl;
-            recvBatch(incoming_ == -1 && packet_ == -1);
+            recvBatch(incoming_ == -1);
         }
     }
     long len = toRecv_[loaded_].len;

@@ -12,9 +12,9 @@
 // #define SENDER
 // #define RECEIVER
 
-#define TARGET_IP   "127.0.0.1"
+// #define TARGET_IP   "127.0.0.1"
 // #define TARGET_IP   "147.32.218.251"
-// #define TARGET_IP   "10.0.0.7"
+#define TARGET_IP   "10.0.0.7"
 
 #ifdef SENDER
 #define TARGET_PORT 4000
@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) {
         }
     } while(!hashesMatch); // restart recv file
     pipe.submitHeader(HeaderType::FileAck, true);
+    pipe.flush();
     std::cout << "File recieved!" << std::endl;
 #endif // RECEIVER
     return 0;
