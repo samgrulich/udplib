@@ -8,6 +8,7 @@
 #include <list>
 #include <locale>
 #include <map>
+#include <set>
 
 #include "CRC.h"
 #include "common.h"
@@ -279,7 +280,7 @@ long NewPipe::recv(unsigned char* buffer) {
 }
 
 long NewPipe::recvBatch(bool isFirst) {
-    int32_t packetId, startPacket;
+    int32_t packetId;
     long msgLen; 
 
     // packet info catcher
@@ -315,6 +316,7 @@ long NewPipe::recvBatch(bool isFirst) {
     // toRecv_[packetId] = Bytes(infoBuffer+2, reqLen-2); // store the packet (without window information)
     
     std::map<int, bool> receivedPackets;
+    std::unordered_map<int, std::set<int>> windows;
     // receivedPackets[packetId] = true;
     // int stopPacket = start + windowSize;
 
@@ -341,7 +343,10 @@ long NewPipe::recvBatch(bool isFirst) {
             windowSize = msgBuffer[1];
             receivedPackets[packetId] = true; 
             receivedPacketIds.push_back(packetId);
-            startPacket = packetId - msgBuffer[0]; 
+            if (windows.find(windowId) == windows.end()) {
+                windows[windowId] = std::set<int>();
+            }
+            windows[windowId].insert(packetId);
             if (windowId != window_+1) {
                 if (windowId < window_+1) {
                     std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
@@ -368,12 +373,10 @@ long NewPipe::recvBatch(bool isFirst) {
             buffer[1] = 1;
             buffer[2] = windowId;
             buffer[3] = Ack;
-            int* idsBuffer = (int*)(buffer+4);
-            int j = 0;
-            for (int i = 0; i < windowSize; i++) {
-                packetId = startPacket + i; // note that packetWindow does not have to be continuous
-                if (toRecv_.find(packetId) != toRecv_.end())
-                    idsBuffer[j++] = packetId;
+            int* idsBuffer = (int*)(buffer+4), i = 0;
+            std::set<int> receivedIds = windows[windowId];
+            for (int packetId : receivedIds) {
+                idsBuffer[i++] = packetId;
             }
             sendBytes(buffer, 4 + 4 * receivedPacketIds.size(), window_);
         } else {
