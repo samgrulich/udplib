@@ -316,7 +316,6 @@ long NewPipe::recvBatch(bool isFirst) {
     // toRecv_[packetId] = Bytes(infoBuffer+2, reqLen-2); // store the packet (without window information)
     
     std::map<int, bool> receivedPackets;
-    std::unordered_map<int, std::set<int>> windows;
     // receivedPackets[packetId] = true;
     // int stopPacket = start + windowSize;
 
@@ -343,10 +342,11 @@ long NewPipe::recvBatch(bool isFirst) {
             windowSize = msgBuffer[1];
             receivedPackets[packetId] = true; 
             receivedPacketIds.push_back(packetId);
-            if (windows.find(windowId) == windows.end()) {
-                windows[windowId] = std::set<int>();
+            if (windows_.find(windowId) == windows_.end()) {
+                windows_[windowId] = std::set<int>();
             }
-            windows[windowId].insert(packetId);
+            windows_[windowId].insert(packetId);
+            toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
             if (windowId != window_+1) {
                 if (windowId < window_+1) {
                     std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
@@ -361,24 +361,23 @@ long NewPipe::recvBatch(bool isFirst) {
                 continue;
             }
             // check if the packet is not already received
-            toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
             // if (!receivedPackets[packetId] && toRecv_.find(packetId) == toRecv_.end()) {
             //     toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
             // }
         }
         if (windowId < window_+1) {
             // generate and send ack
-            unsigned char* buffer = new unsigned char[4 + 4 * windowSize];
+            std::set<int> receivedIds = windows_[windowId];
+            unsigned char* buffer = new unsigned char[4 + 4 * receivedIds.size()];
             buffer[0] = 0;
             buffer[1] = 1;
             buffer[2] = windowId;
             buffer[3] = Ack;
             int* idsBuffer = (int*)(buffer+4), i = 0;
-            std::set<int> receivedIds = windows[windowId];
             for (int packetId : receivedIds) {
                 idsBuffer[i++] = packetId;
             }
-            sendBytes(buffer, 4 + 4 * receivedPacketIds.size(), window_);
+            sendBytes(buffer, 4 + 4 * receivedIds.size(), window_);
         } else {
             // generate and send ack
             unsigned char* buffer = new unsigned char[4 + 4 * receivedPacketIds.size()];
@@ -496,6 +495,8 @@ long NewPipe::flush() {
         if (windowEnd_ > submited_) {
             windowEnd_ = submited_;
         }
+        if (windowStart_ >= windowEnd_)
+            break;
     }
 
     return 0;

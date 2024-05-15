@@ -4,6 +4,7 @@
 #include "socket.h"
 #include "common.h"
 #include <map>
+#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -30,6 +31,7 @@ protected:
     int32_t windowEnd_ = -1;
     std::unordered_map<int32_t, Bytes> toSend_;
     std::unordered_map<int32_t, Bytes> toRecv_;
+    std::unordered_map<int, std::set<int>> windows_;
 private:
     long send(const unsigned char* bytes, int len);
     long sendBatch();
