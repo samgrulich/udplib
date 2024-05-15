@@ -9,7 +9,7 @@
 #include "message.h"
 #include "newpipe.h"
 
-// #define SENDER
+#define SENDER
 // #define RECEIVER
 
 // #define TARGET_IP   "127.0.0.1"
@@ -77,9 +77,12 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < 5; i++) {
         if (pipe.recvBytes(buffer, resId) >= 0) {
-            int start = resId - buffer[0];
+            unsigned char windowId = buffer[2];
             int windowSize = buffer[1];
-            pipe.sendPositiveAck(windowSize, resId);
+            unsigned char buffer[4] = {0, 1, windowId, ForceAck};
+            for (int i = 0; i < windowSize-1; i++) {
+                pipe.recvBytes(buffer, resId);
+            }
         }
     }
 
