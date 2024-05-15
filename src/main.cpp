@@ -80,15 +80,15 @@ int main(int argc, char* argv[]) {
             int windowId;
             memcpy(&windowId, buffer+2, 4);
             int windowSize = buffer[1];
-            unsigned char buffer[7];
-            buffer[0] = 0;
-            buffer[1] = 1;
-            memcpy(buffer+2, &windowId, 4);
-            buffer[6] = ForceAck;
+            unsigned char newBuffer[7];
+            newBuffer[0] = 0;
+            newBuffer[1] = 1;
+            memcpy(newBuffer+2, &windowId, 4);
+            newBuffer[6] = ForceAck;
             for (int i = 0; i < windowSize-1; i++) {
                 pipe.recvBytes(buffer, resId);
             }
-            pipe.sendBytes(buffer, 7, windowId);
+            pipe.sendBytes(newBuffer, 7, windowId);
         }
     }
 
