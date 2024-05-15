@@ -341,7 +341,6 @@ long NewPipe::recvBatch(bool isFirst) {
             windowId = msgBuffer[2];
             windowSize = msgBuffer[1];
             receivedPackets[packetId] = true; 
-            receivedPacketIds.push_back(packetId);
             if (windows_.find(windowId) == windows_.end()) {
                 windows_[windowId] = std::set<int>();
             }
@@ -364,6 +363,7 @@ long NewPipe::recvBatch(bool isFirst) {
             // if (!receivedPackets[packetId] && toRecv_.find(packetId) == toRecv_.end()) {
             //     toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
             // }
+            receivedPacketIds.push_back(packetId);
         }
         if (windowId < window_+1) {
             // generate and send ack
@@ -399,7 +399,7 @@ long NewPipe::recvBatch(bool isFirst) {
         }
     } while(true);
 
-    incoming_ += windowSize;
+    incoming_ = windowEnd_;
 
 
     // int remainingPacketCount = windowSize - 1;
@@ -487,6 +487,9 @@ long NewPipe::flush() {
     int messages = submited_ / WINDOW_SIZE + 1;
     windowStart_ = 0;
     windowEnd_ = WINDOW_SIZE;
+    if (windowEnd_ > submited_) {
+        windowEnd_ = submited_;
+    }
 
     for (int i = 0; i < messages && windowEnd_ != windowStart_; i++) {
         sendBatch();
@@ -505,8 +508,8 @@ long NewPipe::flush() {
 long NewPipe::next(unsigned char* buffer, bool forceRecv) {
     loaded_++;
     std::cout << "next: loading: " << loaded_ << std::endl;
-    if (loaded_ % WINDOW_SIZE == 0)
-        recvBatch(incoming_ == -1);
+    // if (loaded_ % WINDOW_SIZE == 0)
+    //     recvBatch(incoming_ == -1);
     while (toRecv_.find(loaded_) == toRecv_.end()) {
         std::cerr << "next: packet not found: " << loaded_ << ", listening for another batch" << std::endl;
         if (forceRecv) {
