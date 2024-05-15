@@ -77,13 +77,18 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < 5; i++) {
         if (pipe.recvBytes(buffer, resId) >= 0) {
-            unsigned char windowId = buffer[2];
+            int windowId;
+            memcpy(&windowId, buffer+2, 4);
             int windowSize = buffer[1];
-            unsigned char buffer[4] = {0, 1, windowId, ForceAck};
+            unsigned char buffer[7];
+            buffer[0] = 0;
+            buffer[1] = 1;
+            memcpy(buffer+2, &windowId, 4);
+            buffer[6] = ForceAck;
             for (int i = 0; i < windowSize-1; i++) {
                 pipe.recvBytes(buffer, resId);
             }
-            pipe.sendBytes(buffer, 4, windowId);
+            pipe.sendBytes(buffer, 7, windowId);
         }
     }
 

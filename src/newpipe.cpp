@@ -183,7 +183,7 @@ long NewPipe::sendBatch() {
         buffer[0] = i;
         buffer[1] = windowSize;
         memcpy(buffer+2, &window_, 4); // todo: check if it is necessar
-        window[packetId] = Bytes(buffer, packet.len+3);
+        window[packetId] = Bytes(buffer, packet.len+6);
     }
 
     do {
@@ -203,6 +203,10 @@ long NewPipe::sendBatch() {
             if (windowId != window_) {
                 std::cerr << "send: invalid ack: " << (int)(windowId) << std::endl;
                 continue;
+            }
+            if (windowId >= 250) {
+                window_ = 0;
+                windows_.clear();
             }
             // unpack the received packets
             int idsLen = (resLen - 7)/4; // number of packetIds in the message
@@ -350,8 +354,8 @@ long NewPipe::recvBatch(bool isFirst) {
                 continue;
             }
             // check if the packet is from the current window
-            memcpy(&windowId, msgBuffer+2, 4);
             windowSize = msgBuffer[1];
+            memcpy(&windowId, msgBuffer+2, 4);
             receivedPackets[packetId] = true; 
             if (windows_.find(windowId) == windows_.end()) {
                 windows_[windowId] = std::set<int>();
@@ -395,8 +399,12 @@ long NewPipe::recvBatch(bool isFirst) {
             unsigned char* buffer = new unsigned char[7 + 4 * receivedPacketIds.size()];
             buffer[0] = 0;
             buffer[1] = 1;
-            memcpy(buffer+2, &(++windowId), 4);
-            buffer[3] = Ack;
+            memcpy(buffer+2, &(++window_), 4);
+            if (window_ >= 250) {
+                window_ = 0;
+                windows_.clear();
+            }
+            buffer[6] = Ack;
             int* idsBuffer = (int*)(buffer+7);
             int i = 0;
             for (int& packetId : receivedPacketIds) {
