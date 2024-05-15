@@ -198,6 +198,10 @@ long NewPipe::sendBatch() {
         int resHeader = res[3];
         // all checks
         if (resHeader == Ack) {
+            if (res[2] != window_) {
+                std::cerr << "send: invalid ack: " << (int)(res[2]) << std::endl;
+                continue;
+            }
             // unpack the received packets
             int idsLen = (resLen - 4)/4; // number of packetIds in the message
             int* ackData = (int*)(res+4);
@@ -234,14 +238,15 @@ long NewPipe::sendBatch() {
         } else {
             std::cerr << "send: response is not ack: " << (int)(res[2]) << std::endl;
             unsigned char windowId = res[2];
-            if (resId < 0) 
-                continue;
+            // if (resId < 0) 
+            //     continue;
             if (windowId <= window_) {
                 int windowSize = res[1];
                 unsigned char buffer[4] = {0, 1, windowId, ForceAck};
                 for (int i = 0; i < windowSize-1; i++) {
                     resLen = recvBytes(res, resId);
                 }
+                sendBytes(buffer, 4, window_);
                 // sendPositiveAck(res[1], resId-res[0]); // send ack
             }
         }
