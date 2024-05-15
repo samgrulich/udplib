@@ -16,5 +16,6 @@ enum HeaderType {
     End = 10,
     MissingAck = 11,
     MissingPacket = 12,
+    ForceAck = 13,
 };
 

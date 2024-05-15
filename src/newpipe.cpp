@@ -227,13 +227,21 @@ long NewPipe::sendBatch() {
                     packet.bytes[2] = window_;
                 }
             }
+        } else if (resHeader == ForceAck) {
+            // todo: check if the ack is for this window?
+            break;
         } else {
             std::cerr << "send: response is not ack: " << (int)(res[2]) << std::endl;
+            unsigned char windowId = res[2];
             if (resId < 0) 
                 continue;
-            if (resId <= incoming_) {
-                sendPositiveAck(res[1], resId-res[0]); // send ack
-                resLen = recvBytes(res, resId);
+            if (windowId <= window_) {
+                int windowSize = res[1];
+                unsigned char buffer[4] = {0, 1, windowId, ForceAck};
+                for (int i = 0; i < windowSize-1; i++) {
+                    resLen = recvBytes(res, resId);
+                }
+                // sendPositiveAck(res[1], resId-res[0]); // send ack
             }
         }
     } while(true); // repeat
@@ -271,11 +279,10 @@ long NewPipe::recv(unsigned char* buffer) {
 }
 
 long NewPipe::recvBatch(bool isFirst) {
-    int32_t packetId;
+    int32_t packetId, startPacket;
     long msgLen; 
 
     // packet info catcher
-    unsigned char infoBuffer[BUFFERS_LEN];
     int windowSize = WINDOW_SIZE, i = WINDOW_SIZE, windowId;
 
     // do {
@@ -334,6 +341,7 @@ long NewPipe::recvBatch(bool isFirst) {
             windowSize = msgBuffer[1];
             receivedPackets[packetId] = true; 
             receivedPacketIds.push_back(packetId);
+            startPacket = packetId - msgBuffer[0]; 
             if (windowId != window_+1) {
                 if (windowId < window_+1) {
                     std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
@@ -348,22 +356,40 @@ long NewPipe::recvBatch(bool isFirst) {
                 continue;
             }
             // check if the packet is not already received
-            if (!receivedPackets[packetId] && toRecv_.find(packetId) == toRecv_.end()) {
-                toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
+            toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
+            // if (!receivedPackets[packetId] && toRecv_.find(packetId) == toRecv_.end()) {
+            //     toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
+            // }
+        }
+        if (windowId < window_+1) {
+            // generate and send ack
+            unsigned char* buffer = new unsigned char[4 + 4 * windowSize];
+            buffer[0] = 0;
+            buffer[1] = 1;
+            buffer[2] = windowId;
+            buffer[3] = Ack;
+            int* idsBuffer = (int*)(buffer+4);
+            int j = 0;
+            for (int i = 0; i < windowSize; i++) {
+                packetId = startPacket + i; // note that packetWindow does not have to be continuous
+                if (toRecv_.find(packetId) != toRecv_.end())
+                    idsBuffer[j++] = packetId;
             }
+            sendBytes(buffer, 4 + 4 * receivedPacketIds.size(), window_);
+        } else {
+            // generate and send ack
+            unsigned char* buffer = new unsigned char[4 + 4 * receivedPacketIds.size()];
+            buffer[0] = 0;
+            buffer[1] = 1;
+            buffer[2] = ++window_;
+            buffer[3] = Ack;
+            int* idsBuffer = (int*)(buffer+4);
+            int i = 0;
+            for (int& packetId : receivedPacketIds) {
+                idsBuffer[i++] = packetId;
+            }
+            sendBytes(buffer, 4 + 4 * receivedPacketIds.size(), window_);
         }
-        // generate and send ack
-        unsigned char* buffer = new unsigned char[4 + 4 * receivedPacketIds.size()];
-        buffer[0] = 0;
-        buffer[1] = 1;
-        buffer[2] = ++window_;
-        buffer[3] = Ack;
-        int* idsBuffer = (int*)(buffer+4);
-        int i = 0;
-        for (int& packetId : receivedPacketIds) {
-            idsBuffer[i++] = packetId;
-        }
-        sendBytes(buffer, 4 + 4 * receivedPacketIds.size(), window_);
 
         // break if whole window was received
         if (receivedPacketIds.size() == windowSize) {
