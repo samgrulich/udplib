@@ -156,13 +156,13 @@ long NewPipe::send(const unsigned char* bytes, int len) {
 }
 
 void NewPipe::sendPositiveAck(int incomingWindowSize, int packetId) {
-    unsigned char* buffer = new unsigned char[3];
+    unsigned char* buffer = new unsigned char[4];
     buffer[0] = 0;
     buffer[1] = 1;
     buffer[2] = packetId; // todo: switch for window
-    buffer[3] = Ack;
+    buffer[3] = FileAck;
     // todo: add all the packet numbers
-    sendBytes(buffer, 3, packetId);
+    sendBytes(buffer, 4, packetId);
 }
 
 long NewPipe::sendBatch() {
