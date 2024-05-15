@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
     unsigned char buffer[BUFFERS_LEN];
     int32_t resId;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 5; i++) {
         if (pipe.recvBytes(buffer, resId) >= 0) {
             unsigned char windowId = buffer[2];
             int windowSize = buffer[1];
@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
             for (int i = 0; i < windowSize-1; i++) {
                 pipe.recvBytes(buffer, resId);
             }
-            sendBytes(buffer, 4, window_);
+            pipe.sendBytes(buffer, 4, windowId);
         }
     }
 
