@@ -212,9 +212,12 @@ long NewPipe::sendBatch() {
                     int newPacketId = windowEnd_++;
                     if (toSend_.find(newPacketId) != toSend_.end()) { // are there any more packets to send
                         Bytes newPacket = toSend_[newPacketId];
-                        window[newPacketId] = newPacket;
+                        unsigned char buffer[BUFFERS_LEN]; 
+                        memcpy(buffer+3, newPacket.bytes, newPacket.len);
+                        window[newPacketId] = Bytes(buffer, newPacket.len+3);
+                    } else {
                         break;
-                    } 
+                    }
                 }
                 window_++;
                 int i = 0;
@@ -329,6 +332,8 @@ long NewPipe::recvBatch(bool isFirst) {
             // check if the packet is from the current window
             windowId = msgBuffer[2];
             windowSize = msgBuffer[1];
+            receivedPackets[packetId] = true; 
+            receivedPacketIds.push_back(packetId);
             if (windowId != window_+1) {
                 if (windowId < window_+1) {
                     std::cerr << "recvBatch: repeated packet: " << packetId << std::endl;
@@ -346,8 +351,6 @@ long NewPipe::recvBatch(bool isFirst) {
             if (!receivedPackets[packetId] && toRecv_.find(packetId) == toRecv_.end()) {
                 toRecv_[packetId] = Bytes(msgBuffer+3, msgLen-3); // store the packet (without window information)
             }
-            receivedPackets[packetId] = true; 
-            receivedPacketIds.push_back(packetId);
         }
         // generate and send ack
         unsigned char* buffer = new unsigned char[4 + 4 * receivedPacketIds.size()];

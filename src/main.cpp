@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
         pipe.submitHeader(HeaderType::Start);
         do {
             // crc, packetid, header
-            int size = file.read(data, BUFFERS_LEN-11).gcount();
+            int size = file.read(data, BUFFERS_LEN-12).gcount();
             pipe.submit(HeaderType::Data, (unsigned char*)data, size);
             hasher.updateHash(data, size);
         } while (!file.eof());
